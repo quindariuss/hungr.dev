@@ -1,20 +1,17 @@
-Project Number and Name 
------------------------ 
+Project Number and Name
+-----------------------
 SP-5
 DynamicGroceryList
 (mobile app)
-
-Team Memebers
--------------
-Quin'darius Lyles-Woods 704-470-7036 qlyleswo@students.kennesaw.edu(Lead)
+Team Members
+------------
+Quin'darius Lyles-Woods 704-470-7036 qlyleswo@students.kennesaw.edu
 Adam Maksymczuk 678-860-6408 amaksymc@students.kennesaw.edu
-Aidan Le-Beard 678-643-2863 alebeard@students.kennesaw.edu
+Aidan Le-Beard 678-643-2863 alebeard@students.kennesaw.edu aidan30004@gmail.com
 Jeetu Sharma 678-648-9697 jsharma5@students.kennesaw.edu
 Danny Sor 404-512-1354 dsor1@students.kennesaw.edu
-
-Collaboration tools
--------------------
+Collaboration Tools 
+------------------- 
 Discord
-Github
+Github 
 SMS
-
