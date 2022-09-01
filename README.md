@@ -6,8 +6,8 @@ Grocery Application
 
 ### Service: Digital Ocean 
 
-For renting out hardware to run the services on that will connnect each of the clients. 
-Possiblity of running a Postgres Instance really quickly, and having a functioning database. 
+For renting out hardware to run the services on that will connect each of the clients. 
+Possibility of running a Postgres Instance really quickly, and having a functioning database. 
   
 ### HTTP Server: Node JS, express
 
@@ -21,7 +21,7 @@ Will have a variety of GET, POST, PATCH, DELETE requests to be written for the c
 Json File: 
 
 While it is possible to use a file based system for the requirements of the application, lots of things will have to be considered. 
-File access while many agents are using it will be a problem, having a lock file in place would elimate the cause of many users having many different states. 
+File access while many agents are using it will be a problem, having a lock file in place would eliminate the cause of many users having many different states. 
 At the same time the cost of this would be the UX of the application. 
 Not being able to edit the contents of grocery list in a reasonable amount of time would annoy most users. 
 
@@ -55,7 +55,7 @@ The clients will be able to send push notifications to the users about the state
 
 ### iOS Application: 
 ##### Stack: 
-Swift: General Multi-Paridigm Programming Language
+Swift: General Multi-Paradigm Programming Language
 SwiftUI: Declarative User Interface Builder, Stateful updates
 Async/Await: Asynchronous method of scheduling work to be done, useful for networking and other tasks that cannot be done synchronously. 
 
