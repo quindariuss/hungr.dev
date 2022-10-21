@@ -1,6 +1,22 @@
 import 'package:flutter/material.dart';
 
+/* global variable for initial food list for all new users.
+  will be filled as a future/from API call.
+   Out Grocery list. */
+final _groceryItems = ['Eggs', 'Milk', 'Fish Sauce', 'Bread', 'Apple Juice', 'Coke', 'Potato Chips',
+  'Froot Loops', 'Oatmeal', 'Snickers', 'Cheddar Cheese', 'Beer', 'Water', 'Cigarettes',
+  'Oreos', 'Ham', 'Wine', 'Bananas', 'Spinach', 'Cherries', 'Ketchup', 'Coffee', 'Hot Dogs'];
+
+// used for sorting based on frequency
+final _groceryItemsFrequency = [];
+
 void main() {
+
+  /* populate frequency array with proper values (if first logging in, all 0's) */
+  for (int i = 0; i < _groceryItems.length; i++) {
+    _groceryItemsFrequency.add(0);
+  }
+
   runApp(const MyApp());
 }
 
@@ -25,22 +41,13 @@ class GroceryItems extends StatefulWidget {
 }
 
 class _GroceryItemsState extends State<GroceryItems> {
-  // our grocery list
-  final _groceryItems = ['Eggs', 'Milk', 'Fish Sauce', 'Bread', 'Apple Juice', 'Coke', 'Potato Chips',
-    'Froot Loops', 'Oatmeal', 'Snickers', 'Cheddar Cheese', 'Beer', 'Water', 'Cigarettes',
-    'Oreos', 'Ham', 'Wine', 'Bananas', 'Spinach', 'Cherries', 'Ketchup', 'Coffee', 'Hot Dogs'];
 
   /* used for unsorting: maintain the old order.
-  can also be used to keep old removed items, and add them back: not implemented */
-  final _groceryItemsCopy = ['Eggs', 'Milk', 'Fish Sauce', 'Bread', 'Apple Juice', 'Coke', 'Potato Chips',
-    'Froot Loops', 'Oatmeal', 'Snickers', 'Cheddar Cheese', 'Beer', 'Water', 'Cigarettes',
-    'Oreos', 'Ham', 'Wine', 'Bananas', 'Spinach', 'Cherries', 'Ketchup', 'Coffee', 'Hot Dogs'];
+  can also be used to keep old removed items, and add them back */
+  final _groceryItemsCopy = _groceryItems.toList();
 
   var finalShoppingList = []; // holds bools for if the final shopping list is checked or unchecked
   var checkedList = []; // holds a copy of _checked that shouldn't be able to be updated for the final shopping list
-
-  // used for sorting based on frequency
-  final _groceryItemsFrequency = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
   // stores if the list has been alphabetically sorted. used if a new item is added, to put in proper place
   var _alphabeticallySorted = false;
