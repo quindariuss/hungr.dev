@@ -13,6 +13,10 @@ final _groceryItems = [];
 // used for sorting based on frequency
 final _groceryItemsFrequency = [];
 
+/* used for unsorting: maintain the old order. Also for frequency sort.
+  can also be used to keep old removed items, and add them back */
+var _groceryItemsCopy = [];
+
 var loggedIn = false; // needs to check if the user is logged in, currently does nothing
 
 var filePath = ''; // path to where this app saves files, calculated in main()
@@ -21,53 +25,60 @@ var filePath = ''; // path to where this app saves files, calculated in main()
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // working on saving and reading a file locally
+  // get the phone's path to where it saves files for this app
   Directory appDocumentsDirectory = await getApplicationDocumentsDirectory();
   var appDocumentsPath = appDocumentsDirectory.path;
-  filePath = "$appDocumentsPath/test.txt";
+  filePath = "$appDocumentsPath";
 
   // loggedIn boolean NOT IMPLEMENTED YET
   if (loggedIn) {
     /** get groceryList from API, check what group they're in...
-    ACTUALLY, don't we want each user to have their own local list?
-    SO, we probably don't want this.
-    API calls should actually only happen when... clicking Add to Group List / clicking Generate Shopping List **/
+        ACTUALLY, don't we want each user to have their own local list?
+        SO, we probably don't want this.
+        API calls should actually only happen when... clicking Add to Group List / clicking Generate Shopping List **/
   }
 
+  // this willl likely be changed to the first IF, and above removed
   // else check if there's a local file, and use that
-  else if (File(filePath).existsSync()) {
-    print("LOADING LOCAL FILE");
+  else if (File(filePath + "/groceryItems.txt").existsSync() && File(filePath + "/groceryItemsCopy.txt").existsSync()) {
     // convert the .txt json and save in _groceryItems
-    var fileContent = await File(filePath).readAsString();
+    var fileContent = await File(filePath + "/groceryItems.txt").readAsString();
     var jsonLocalList = jsonDecode(fileContent);
     /* populate the initial array with localList's
     items (their names) from the API call */
     for (int i = 0; i < jsonLocalList.length; i++) {
       _groceryItems.add(jsonLocalList[i]['name']);
     }
+
+    var fileContentCopy = await File(filePath + "/groceryItemsCopy.txt").readAsString();
+    var jsonLocalListCopy = jsonDecode(fileContentCopy);
+    /* populate the copy array with localListCopy's
+    items (their names) from the API call.
+     Frequency is based on the copy list, so also populate these */
+    for (int i = 0; i < jsonLocalListCopy.length; i++) {
+      _groceryItemsCopy.add(jsonLocalListCopy[i]['name']);
+      _groceryItemsFrequency.add(jsonLocalListCopy[i]['frequency']);
+    }
   }
 
   // else use the default list
   else { /** actually later let's not do this API call, and just initialize _groceryItems as the global pre-populated, like I did
-     at the beginning, then we can clear it in the above if / else if and repopulate it there,
-      making this API call not have to happen. Saving this for later use to see how API calls work... **/
+      at the beginning of the original version, then we can clear it in the above if / else if and repopulate it there,
+      making this API call not have to happen. Saving this for later use to see how API calls work, though... **/
 
     // API call to get the initial starting list every user will have
     var response = await http.get(Uri.parse('http://api.hungr.dev:5000/items?groceryList=startingList'));
     // convert the Response GET to a JSON (List)
     var jsonResponse = jsonDecode(response.body);
     /* populate the initial array with the groceryList startingList's
-   items (their names) from the API call */
+   items (their names) from the API call.
+    Also initialize frequency values as all 0s */
     for (int i = 0; i < jsonResponse.length; i++) {
       _groceryItems.add(jsonResponse[i]['name']);
+      _groceryItemsFrequency.add(0);
     }
-  }
-
-  /* populate frequency array with proper values (if first logging in, all 0's) */
-  /** PUT IN ABOVE IF/ELSE IF/ELSE for various cases... I think the API needs a new row for this **/
-  // right now frequencies will all reset to 0 every time the app is closed/opened
-  for (int i = 0; i < _groceryItems.length; i++) {
-    _groceryItemsFrequency.add(0);
+    // make starting copy list
+    _groceryItemsCopy = _groceryItems.toList();
   }
 
   runApp(const MyApp());
@@ -100,19 +111,15 @@ class _GroceryItemsState extends State<GroceryItems> {
   //  'Froot Loops', 'Oatmeal', 'Snickers', 'Cheddar Cheese', 'Beer', 'Water', 'Cigarettes',
   //  'Oreos', 'Ham', 'Wine', 'Bananas', 'Spinach', 'Cherries', 'Ketchup', 'Coffee', 'Hot Dogs'];
 
-  /* replaced BELOW as a copy of _groceryItems */
+  /* replaced in main() else{} clause as a copy of _groceryItems */
   // final _groceryItemsCopy = ['Eggs', 'Milk', 'Fish Sauce', 'Bread', 'Apple Juice', 'Coke', 'Potato Chips',
   //  'Froot Loops', 'Oatmeal', 'Snickers', 'Cheddar Cheese', 'Beer', 'Water', 'Cigarettes',
   //  'Oreos', 'Ham', 'Wine', 'Bananas', 'Spinach', 'Cherries', 'Ketchup', 'Coffee', 'Hot Dogs'];
 
-  /* used for unsorting: maintain the old order.
-  can also be used to keep old removed items, and add them back */
-  final _groceryItemsCopy = _groceryItems.toList();
-
   var finalShoppingList = []; // holds bools for if the final shopping list is checked or unchecked
   var checkedList = []; // holds a copy of _checked that shouldn't be able to be updated for the final shopping list
 
-  /* Replaced in main() as less hard-coded version */
+  /* Replaced in main() else{} clause as less hard-coded version */
   // final _groceryItemsFrequency = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
   // stores if the list has been alphabetically sorted. used if a new item is added, to put in proper place
@@ -170,11 +177,10 @@ class _GroceryItemsState extends State<GroceryItems> {
                 for (final item in _groceryItemsCopy) {
                   // if not in _groceryItems
                   if (!_groceryItems.contains(item)) {
-                      // add the item in the copy to the view
+                    // add the item in the copy to the view
                     _groceryItems.add(item);
                   }
                   // to update the view
-                  setState(() {});
                 }
                 // re-sort if needed.
                 if (_alphabeticallySorted) {
@@ -184,6 +190,8 @@ class _GroceryItemsState extends State<GroceryItems> {
                   _saveLocalList();
                 } else if (_frequencySorted) {
                   _frequencySort();
+                } else {
+                  _unsort();
                 }
 
                 _saveLocalList(); // save the list locally as it's been altered
@@ -202,32 +210,32 @@ class _GroceryItemsState extends State<GroceryItems> {
               }
             },
             // lambda expression => creates and populates popupmenu entries with child's
-          itemBuilder: (context) => [
-                const PopupMenuItem(
-                  value: 0,
-                  child: Text('Sort Alphabetically'),
-                ),
-                const PopupMenuItem(
-                  value: 1,
-                  child: Text('Sort By Purchase Frequency'),
-                ),
-                const PopupMenuItem(
-                  value: 2,
-                  child: Text('Unsort'),
-                ),
-                const PopupMenuItem(
-                  value: 3,
-                  child: Text('Repopulate Deleted Items'),
-                ),
-                const PopupMenuItem(
-                  value: 4,
-                  child: Text('Check All'),
-                ),
-                const PopupMenuItem(
-                  value: 5,
-                  child: Text('Uncheck All'),
-                ),
-              ],
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 0,
+                child: Text('Sort Alphabetically'),
+              ),
+              const PopupMenuItem(
+                value: 1,
+                child: Text('Sort By Purchase Frequency'),
+              ),
+              const PopupMenuItem(
+                value: 2,
+                child: Text('Unsort'),
+              ),
+              const PopupMenuItem(
+                value: 3,
+                child: Text('Repopulate Deleted Items'),
+              ),
+              const PopupMenuItem(
+                value: 4,
+                child: Text('Check All'),
+              ),
+              const PopupMenuItem(
+                value: 5,
+                child: Text('Uncheck All'),
+              ),
+            ],
           ),
         ],
       ),
@@ -552,7 +560,7 @@ class _GroceryItemsState extends State<GroceryItems> {
                   body: ListView(children: divided),
                 );
               });
-          },
+        },
       ),
     );
   }
@@ -636,34 +644,34 @@ class _GroceryItemsState extends State<GroceryItems> {
                      and only add it if the string isn't empty. Also make the first letter of every word uppercase,
                      and the following letters lowercase, for sorting [.sort() considers all lowercase letters, ex 'a'
                      to come after all uppercase letters, ex. 'Z'].*/
-                        final splitBySpace = controller.text.trim().split(' '); // split string into array of words
-                        splitBySpace.removeWhere((element) => element == ''); // remove extra spaces
-                        for (var i = 0; i < splitBySpace.length; i++) {
-                          // uppercase the first letter of each word, followed by lowercasing the other letters
-                          splitBySpace[i] = splitBySpace[i][0].toUpperCase() + splitBySpace[i].substring(1).toLowerCase();
-                        }
-                        controller.text = splitBySpace.join(' '); // join words back with spaces
+                      final splitBySpace = controller.text.trim().split(' '); // split string into array of words
+                      splitBySpace.removeWhere((element) => element == ''); // remove extra spaces
+                      for (var i = 0; i < splitBySpace.length; i++) {
+                        // uppercase the first letter of each word, followed by lowercasing the other letters
+                        splitBySpace[i] = splitBySpace[i][0].toUpperCase() + splitBySpace[i].substring(1).toLowerCase();
+                      }
+                      controller.text = splitBySpace.join(' '); // join words back with spaces
 
-                        setState(() {
-                          /* add the item to the list. if() statement checks if the item is already
+                      setState(() {
+                        /* add the item to the list. if() statement checks if the item is already
                         in the list, and doesn't copy it if so. */
-                          if (!_groceryItems.contains(controller.text)) {
-                            _groceryItems.add(controller.text[0].toUpperCase() + controller.text.substring(1));
-                            _saveLocalList(); // list is changed, so save locally
-                          }
-                          if (!_groceryItemsCopy.contains(controller.text)) {
-                            _groceryItemsCopy.add(controller.text[0].toUpperCase() + controller.text.substring(1));
-                            _groceryItemsFrequency.add(0); // starting frequency is 0
-                          }
+                        if (!_groceryItems.contains(controller.text)) {
+                          _groceryItems.add(controller.text[0].toUpperCase() + controller.text.substring(1));
+                          _saveLocalList(); // list is changed, so save locally
+                        }
+                        if (!_groceryItemsCopy.contains(controller.text)) {
+                          _groceryItemsCopy.add(controller.text[0].toUpperCase() + controller.text.substring(1));
+                          _groceryItemsFrequency.add(0); // starting frequency is 0
+                        }
 
-                          // maintain sorts, if true
-                          if (_alphabeticallySorted) {
-                            _groceryItems.sort();
-                            _saveLocalList();
-                          } else if (_frequencySorted) { // in case of re-adding an item stored in the copy
-                            _frequencySort();
-                          }
-                        });
+                        // maintain sorts, if true
+                        if (_alphabeticallySorted) {
+                          _groceryItems.sort();
+                          _saveLocalList();
+                        } else if (_frequencySorted) { // in case of re-adding an item stored in the copy
+                          _frequencySort();
+                        }
+                      });
 
                       // if addOrDelete is false, we're deleting, not adding
                     } else if (!addOrDelete) {
@@ -698,7 +706,7 @@ class _GroceryItemsState extends State<GroceryItems> {
     /* if items in the copy of the view are also in the placeholder, re-add them to the view. */
     for(final listEntry in _groceryItemsCopy) {
       if (groceryItemsPlaceHolder.contains(listEntry)) {
-          _groceryItems.add(listEntry);
+        _groceryItems.add(listEntry);
       }
     }
     setState(() {});
@@ -729,7 +737,7 @@ class _GroceryItemsState extends State<GroceryItems> {
       // if the item held at that index was still in _groceryItems [ex, not deleted])
       if (groceryItemsPlaceHolder.contains(groceryItemsCopyPlaceHolder[index])) {
         // add it to the top of _groceryItems
-          _groceryItems.add(groceryItemsCopyPlaceHolder[index]);
+        _groceryItems.add(groceryItemsCopyPlaceHolder[index]);
       }
       // remove the first instance of the highest frequency item from the frequency list and grocery list
       groceryItemsFrequencyPlaceHolder.remove(sortedGroceryItemsFrequency[i]);
@@ -743,19 +751,40 @@ class _GroceryItemsState extends State<GroceryItems> {
 
   void _saveLocalList() {
 
+    // start json string
     var localList = "[";
 
+    // add all grocery Items to the json string with appropriate names/values in the json
     for (int i = 0; i < _groceryItems.length; i++) {
+      // add a comma for the 2nd and on items
       if (i != 0) {
-        localList += ",";
+        localList += ", ";
       }
       // ID and the list that this is saved on shouldn't really be used... counts and notes are not implemented in the app
       localList += "{\"id\": $i, \"name\": \"" + _groceryItems[i] + "\", \"count\": 1, \"note\": null, \"groceryList\": \"localList\"}";
     }
+    // finish the json string
     localList += "]";
 
-    File file = File(filePath);
+    // write the json to a file saved locally on user's phone
+    File file = File(filePath + "/groceryItems.txt");
     file.writeAsString(localList); // write the JSON to local file
+
+    // do the same as above with the copy list that we use for "unsort", "repopulate deleted items", and frequency sort
+    var localListCopy = "[";
+
+    for (int i = 0; i < _groceryItemsCopy.length; i++) {
+      if (i != 0) {
+        localListCopy += ", ";
+      }
+      // add a new frequency category in the JSON to also save our frequency array
+      // ID and the list that this is saved on shouldn't really be used... counts and notes are not implemented in the app
+      localListCopy += "{\"id\": $i, \"name\": \"" + _groceryItemsCopy[i] + "\", \"count\": 1, \"note\": null, \"groceryList\": \"localList\", \"frequency\": " + _groceryItemsFrequency[i].toString() + "}";
+    }
+    localListCopy += "]";
+
+    File fileCopy = File(filePath + "/groceryItemsCopy.txt");
+    fileCopy.writeAsString(localListCopy); // write the JSON to local file
 
   }
 
