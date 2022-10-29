@@ -21,6 +21,10 @@ var loggedIn = false; // needs to check if the user is logged in, currently does
 
 var filePath = ''; // path to where this app saves files, calculated in main()
 
+// stores if the list has been alphabetically sorted. used if a new item is added, to put in proper place
+var _alphabeticallySorted = false;
+var _frequencySorted = false;
+
 // make main() async for Futures
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -58,6 +62,19 @@ void main() async {
     for (int i = 0; i < jsonLocalListCopy.length; i++) {
       _groceryItemsCopy.add(jsonLocalListCopy[i]['name']);
       _groceryItemsFrequency.add(jsonLocalListCopy[i]['frequency']);
+    }
+
+    // if the user never sorted but edited the list...
+    if (!(File(filePath + "/sorted.txt").existsSync())) {
+      File file = File(filePath + "/sorted.txt");
+      file.writeAsString("");
+    }
+
+    var sortedFile = await File(filePath + "/sorted.txt").readAsString();
+    if (sortedFile == "_alphabeticallySorted") {
+      _alphabeticallySorted = true;
+    } else if (sortedFile == "_frequencySorted") {
+      _frequencySorted = true;
     }
   }
 
@@ -122,9 +139,7 @@ class _GroceryItemsState extends State<GroceryItems> {
   /* Replaced in main() else{} clause as less hard-coded version */
   // final _groceryItemsFrequency = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
-  // stores if the list has been alphabetically sorted. used if a new item is added, to put in proper place
-  var _alphabeticallySorted = false;
-  var _frequencySorted = false;
+  // used for the finished shopping pop-up box
   var _finishedShopping = false;
 
   // holds all of the checked items in a set, so they can't be duplicated
@@ -166,6 +181,10 @@ class _GroceryItemsState extends State<GroceryItems> {
                   _groceryItems.sort();
                   _alphabeticallySorted = true;
                   _frequencySorted = false;
+
+                  // save on file that it is sorted
+                  File file = File(filePath + "/sorted.txt");
+                  file.writeAsString("_alphabeticallySorted");
                 });
                 _saveLocalList();
               } else if (selectedValue == 1) { // sort by purchase frequency
@@ -180,8 +199,8 @@ class _GroceryItemsState extends State<GroceryItems> {
                     // add the item in the copy to the view
                     _groceryItems.add(item);
                   }
-                  // to update the view
                 }
+
                 // re-sort if needed.
                 if (_alphabeticallySorted) {
                   setState(() {
@@ -193,8 +212,6 @@ class _GroceryItemsState extends State<GroceryItems> {
                 } else {
                   _unsort();
                 }
-
-                _saveLocalList(); // save the list locally as it's been altered
 
               } else if (selectedValue == 4) { // check all
                 _checked.clear();
@@ -710,6 +727,11 @@ class _GroceryItemsState extends State<GroceryItems> {
       }
     }
     setState(() {});
+
+    // save on file that it is unsorted
+    File file = File(filePath + "/sorted.txt");
+    file.writeAsString("");
+
     _saveLocalList(); // re-save locally since we're going back to original sort
   }
 
@@ -746,6 +768,12 @@ class _GroceryItemsState extends State<GroceryItems> {
     }
     //reset the view
     setState(() {});
+
+    // save on file that it is sorted
+    File file = File(filePath + "/sorted.txt");
+    file.writeAsString("_frequencySorted");
+
+    // save the list again
     _saveLocalList();
   }
 
