@@ -39,14 +39,14 @@ void main() async {
     /** get groceryList from API, check what group they're in...
         ACTUALLY, don't we want each user to have their own local list?
         SO, we probably don't want this.
-        API calls should actually only happen when... clicking Add to Group List / clicking Generate Shopping List **/
+        API calls should actually only happen when... clicking Add to Shared List / clicking Generate Shopping List? **/
   }
 
-  // this willl likely be changed to the first IF, and above removed
+  // this will likely be changed to the first IF, and above removed
   // else check if there's a local file, and use that
-  else if (File(filePath + "/groceryItems.txt").existsSync() && File(filePath + "/groceryItemsCopy.txt").existsSync()) {
-    // convert the .txt json and save in _groceryItems
-    var fileContent = await File(filePath + "/groceryItems.txt").readAsString();
+  else if (File(filePath + "/groceryItems.json").existsSync() && File(filePath + "/groceryItemsCopy.json").existsSync()) {
+    // convert the .json json and save in _groceryItems
+    var fileContent = await File(filePath + "/groceryItems.json").readAsString();
     var jsonLocalList = jsonDecode(fileContent);
     /* populate the initial array with localList's
     items (their names) from the API call */
@@ -54,7 +54,7 @@ void main() async {
       _groceryItems.add(jsonLocalList[i]['name']);
     }
 
-    var fileContentCopy = await File(filePath + "/groceryItemsCopy.txt").readAsString();
+    var fileContentCopy = await File(filePath + "/groceryItemsCopy.json").readAsString();
     var jsonLocalListCopy = jsonDecode(fileContentCopy);
     /* populate the copy array with localListCopy's
     items (their names) from the API call.
@@ -65,12 +65,12 @@ void main() async {
     }
 
     // if the user never sorted but edited the list...
-    if (!(File(filePath + "/sorted.txt").existsSync())) {
-      File file = File(filePath + "/sorted.txt");
+    if (!(File(filePath + "/sorted.json").existsSync())) {
+      File file = File(filePath + "/sorted.json");
       file.writeAsString("");
     }
 
-    var sortedFile = await File(filePath + "/sorted.txt").readAsString();
+    var sortedFile = await File(filePath + "/sorted.json").readAsString();
     if (sortedFile == "_alphabeticallySorted") {
       _alphabeticallySorted = true;
     } else if (sortedFile == "_frequencySorted") {
@@ -80,7 +80,7 @@ void main() async {
 
   // else use the default list
   else { /** actually later let's not do this API call, and just initialize _groceryItems as the global pre-populated, like I did
-      at the beginning of the original version, then we can clear it in the above if / else if and repopulate it there,
+      at the beginning of the original version, then we can clear it in the above else if and repopulate it there,
       making this API call not have to happen. Saving this for later use to see how API calls work, though... **/
 
     // API call to get the initial starting list every user will have
@@ -122,7 +122,7 @@ class GroceryItems extends StatefulWidget {
 
 class _GroceryItemsState extends State<GroceryItems> {
 
-  /* replaced with API call in main() */
+  /* replaced with API call in main() else{} clause, but we're going to want this back */
   // our grocery list
   // final _groceryItems = ['Eggs', 'Milk', 'Fish Sauce', 'Bread', 'Apple Juice', 'Coke', 'Potato Chips',
   //  'Froot Loops', 'Oatmeal', 'Snickers', 'Cheddar Cheese', 'Beer', 'Water', 'Cigarettes',
@@ -183,7 +183,7 @@ class _GroceryItemsState extends State<GroceryItems> {
                   _frequencySorted = false;
 
                   // save on file that it is sorted
-                  File file = File(filePath + "/sorted.txt");
+                  File file = File(filePath + "/sorted.json");
                   file.writeAsString("_alphabeticallySorted");
                 });
                 _saveLocalList();
@@ -673,11 +673,11 @@ class _GroceryItemsState extends State<GroceryItems> {
                         /* add the item to the list. if() statement checks if the item is already
                         in the list, and doesn't copy it if so. */
                         if (!_groceryItems.contains(controller.text)) {
-                          _groceryItems.add(controller.text[0].toUpperCase() + controller.text.substring(1));
+                          _groceryItems.add(controller.text);
                           _saveLocalList(); // list is changed, so save locally
                         }
                         if (!_groceryItemsCopy.contains(controller.text)) {
-                          _groceryItemsCopy.add(controller.text[0].toUpperCase() + controller.text.substring(1));
+                          _groceryItemsCopy.add(controller.text);
                           _groceryItemsFrequency.add(0); // starting frequency is 0
                         }
 
@@ -729,7 +729,7 @@ class _GroceryItemsState extends State<GroceryItems> {
     setState(() {});
 
     // save on file that it is unsorted
-    File file = File(filePath + "/sorted.txt");
+    File file = File(filePath + "/sorted.json");
     file.writeAsString("");
 
     _saveLocalList(); // re-save locally since we're going back to original sort
@@ -770,7 +770,7 @@ class _GroceryItemsState extends State<GroceryItems> {
     setState(() {});
 
     // save on file that it is sorted
-    File file = File(filePath + "/sorted.txt");
+    File file = File(filePath + "/sorted.json");
     file.writeAsString("_frequencySorted");
 
     // save the list again
@@ -795,7 +795,7 @@ class _GroceryItemsState extends State<GroceryItems> {
     localList += "]";
 
     // write the json to a file saved locally on user's phone
-    File file = File(filePath + "/groceryItems.txt");
+    File file = File(filePath + "/groceryItems.json");
     file.writeAsString(localList); // write the JSON to local file
 
     // do the same as above with the copy list that we use for "unsort", "repopulate deleted items", and frequency sort
@@ -811,7 +811,7 @@ class _GroceryItemsState extends State<GroceryItems> {
     }
     localListCopy += "]";
 
-    File fileCopy = File(filePath + "/groceryItemsCopy.txt");
+    File fileCopy = File(filePath + "/groceryItemsCopy.json");
     fileCopy.writeAsString(localListCopy); // write the JSON to local file
 
   }
