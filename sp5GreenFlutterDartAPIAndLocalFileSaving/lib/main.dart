@@ -280,6 +280,10 @@ class _GroceryItemsState extends State<GroceryItems> {
             confirmDismiss: (direction) async {
               if (direction == DismissDirection.startToEnd) {
                 setState(() {
+                  // if remove an item from the viewable list, also remove it from shared/_checked list?
+                  // previously it was keeping it, so you could check a box, and then remove it from your local list,
+                  // but it would remain in _checked / middle list, with no way to remove it, without re-adding the item...
+                  _checked.remove(_groceryItems[index]);
                   _groceryItems.remove(_groceryItems[index]);
                 });
                 _saveLocalList(); // update the locally saved list
@@ -600,7 +604,7 @@ class _GroceryItemsState extends State<GroceryItems> {
           /* ask to add or delete based on addOrDelete, which is based on which
           thing called the pop up: long press or +. Also check if popup is for finishing shopping */
           title: _finishedShopping ? const Text('Finished Shopping?') : addOrDelete ? const Text('Add Item to Grocery List? ') :
-          Text('Delete \'$groceryListValue\' from Grocery List?'), /* "interpolation":
+          Text('Permanently delete \'$groceryListValue\' from Grocery List?'), /* "interpolation":
            putting the value in the string directly, instead of concatenating */
           actions: <Widget> [
             Visibility(
@@ -693,7 +697,13 @@ class _GroceryItemsState extends State<GroceryItems> {
                       // if addOrDelete is false, we're deleting, not adding
                     } else if (!addOrDelete) {
                       setState(() {
+                        // remove from _checked list if removing from local list, in case removing while checked
+                        _checked.remove(groceryListValue);
+                        // remove from view list
                         _groceryItems.remove(groceryListValue);
+                        // permanently delete from long press, so delete from copy list and related frequency list
+                        _groceryItemsFrequency.removeAt(_groceryItemsCopy.indexOf(groceryListValue));
+                        _groceryItemsCopy.remove(groceryListValue);
                       });
                       _saveLocalList(); // re-save locally since we're going back to original sort
                     }
