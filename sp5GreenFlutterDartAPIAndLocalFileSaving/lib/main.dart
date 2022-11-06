@@ -17,6 +17,9 @@ final _groceryItemsFrequency = [];
   can also be used to keep old removed items, and add them back */
 var _groceryItemsCopy = [];
 
+// holds all of the checked items in a set, so they can't be duplicated
+final _checked = <String>{};
+
 var loggedIn = false; // needs to check if the user is logged in, currently does nothing
 
 var filePath = ''; // path to where this app saves files, calculated in main()
@@ -70,12 +73,23 @@ void main() async {
       file.writeAsString("");
     }
 
+    // check if the app last had a sort applied, and re-apply it
     var sortedFile = await File(filePath + "/sorted.json").readAsString();
     if (sortedFile == "_alphabeticallySorted") {
       _alphabeticallySorted = true;
     } else if (sortedFile == "_frequencySorted") {
       _frequencySorted = true;
     }
+
+    // re-check boxes if any were checked
+    if (File(filePath + "/checked.json").existsSync()) {
+      var fileChecked = await File(filePath + "/checked.json").readAsString();
+      var jsonChecked = jsonDecode(fileChecked);
+      for (int i = 0; i < jsonChecked.length; i++) {
+        _checked.add(jsonChecked[i]['name']);
+      }
+    }
+
   }
 
   // else use the default list
@@ -141,9 +155,6 @@ class _GroceryItemsState extends State<GroceryItems> {
 
   // used for the finished shopping pop-up box
   var _finishedShopping = false;
-
-  // holds all of the checked items in a set, so they can't be duplicated
-  final _checked = <String>{};
 
   // home screen (1st) definition
   @override
@@ -220,10 +231,14 @@ class _GroceryItemsState extends State<GroceryItems> {
                     _checked.add(item);
                   });
                 }
+                // update _checked save file
+                _saveLocalList();
               } else if (selectedValue == 5) { // uncheck all
                 setState(() {
                   _checked.clear();
                 });
+                // update _checked save file
+                _saveLocalList();
               }
             },
             // lambda expression => creates and populates popupmenu entries with child's
@@ -289,6 +304,7 @@ class _GroceryItemsState extends State<GroceryItems> {
                 _saveLocalList(); // update the locally saved list
                 // disable swipe left, for now
               } else if (direction == DismissDirection.endToStart) {
+                // swiping left... do nothing currently
               }
             },
 
@@ -312,6 +328,8 @@ class _GroceryItemsState extends State<GroceryItems> {
                     _checked.add(_groceryItems[index]);
                   }
                 });
+                // update _checked save file
+                _saveLocalList();
               },
               onLongPress: () {
                 _popUp(_groceryItems[index]);
@@ -650,6 +668,9 @@ class _GroceryItemsState extends State<GroceryItems> {
 
                       setState(() {});
 
+                      // update saved files for frequency / checked
+                      _saveLocalList();
+
                       /* return to the home screen by pushing. could change GroceryItems() to MyApp() also.
                       Not really sure why we need both of these commands, but with only one, it doesn't work? */
                       Navigator.of(context).popUntil((route) => route.isFirst);
@@ -678,8 +699,8 @@ class _GroceryItemsState extends State<GroceryItems> {
                         in the list, and doesn't copy it if so. */
                         if (!_groceryItems.contains(controller.text)) {
                           _groceryItems.add(controller.text);
-                          _saveLocalList(); // list is changed, so save locally
                         }
+
                         if (!_groceryItemsCopy.contains(controller.text)) {
                           _groceryItemsCopy.add(controller.text);
                           _groceryItemsFrequency.add(0); // starting frequency is 0
@@ -694,6 +715,8 @@ class _GroceryItemsState extends State<GroceryItems> {
                         }
                       });
 
+                      _saveLocalList(); // list is changed, so save locally
+
                       // if addOrDelete is false, we're deleting, not adding
                     } else if (!addOrDelete) {
                       setState(() {
@@ -705,7 +728,7 @@ class _GroceryItemsState extends State<GroceryItems> {
                         _groceryItemsFrequency.removeAt(_groceryItemsCopy.indexOf(groceryListValue));
                         _groceryItemsCopy.remove(groceryListValue);
                       });
-                      _saveLocalList(); // re-save locally since we're going back to original sort
+                      _saveLocalList(); // re-save locally
                     }
                     // close the AlertDialog
                     Navigator.of(context).pop();
@@ -823,6 +846,24 @@ class _GroceryItemsState extends State<GroceryItems> {
 
     File fileCopy = File(filePath + "/groceryItemsCopy.json");
     fileCopy.writeAsString(localListCopy); // write the JSON to local file
+
+    // do the same as above with _checkedList
+    checkedList = _checked.toList();
+
+    var localListChecked = "[";
+
+    for (int i = 0; i < checkedList.length; i++) {
+      if (i != 0) {
+        localListChecked += ", ";
+      }
+      // add a new frequency category in the JSON to also save our frequency array
+      // ID and the list that this is saved on shouldn't really be used... counts and notes are not implemented in the app
+      localListChecked += "{\"id\": $i, \"name\": \"" + checkedList[i] + "\", \"count\": 1, \"note\": null, \"groceryList\": \"localList\"}";
+    }
+    localListChecked += "]";
+
+    File fileChecked = File(filePath + "/checked.json");
+    fileChecked.writeAsString(localListChecked); // write the JSON to local file
 
   }
 
