@@ -122,7 +122,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const MaterialApp(
-      title: 'Grocery Prototype',
+      title: 'Hungr',
       home: GroceryItems(),
     );
   }
@@ -165,7 +165,7 @@ class _GroceryItemsState extends State<GroceryItems> {
 
       // scaffold pt 1: appBar
       appBar: AppBar(
-        title: const Text('Grocery Prototype'),
+        title: const Text('Local List'),
         actions: [
           SizedBox(
             width: 110,
