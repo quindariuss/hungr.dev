@@ -31,7 +31,7 @@ var _frequencySorted = false;
 // loggedIn boolean NOT IMPLEMENTED YET
 var loggedIn = false; // needs to check if the user is logged in, currently does nothing
 // needs to be the group the user joined (groceryList column in items in API), not hard-coded like this.
-// probably changes this to '' or something once properly implemented
+// probably change this to '' or something once properly implemented
 var joinedGroup = "startingList";
 
 // make main() async for Futures
@@ -668,7 +668,11 @@ class _GroceryItemsState extends State<GroceryItems> {
                        _checked list? When submitting make a bool for each user who submitted to the list,
                        set it to False, and next time they check/uncheck a box/click add to shared list,
                        make an API call to see if the bool is True/False, and if False, clear their _checked list, and
-                       set the bool to True? **/
+                       set the bool to True?
+                       OR
+                       We could change the 2nd page to be stateful and allow swiping right of tiles
+                       that match the username, and clicking "Add to Shared List" could actually do that, and
+                          could POST to the DB, and clear the _checked list... but that'd be some work **/
 
                       /* return to the home screen by pushing. could change GroceryItems() to MyApp() also.
                       Not really sure why we need both of these commands, but with only one, it doesn't work? */
