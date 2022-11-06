@@ -6,8 +6,7 @@ import 'dart:convert'; // convert GET result to JSON/List
 import 'package:path_provider/path_provider.dart'; // use getApplicationDocumentsDirectory()
 import 'dart:io'; // use Directory, File...
 
-/* global variable for initial food list for all new users.
-  will be filled as a future/from API call */
+// global variable for initial food list for all new users.
 final _groceryItems = ['Eggs', 'Milk', 'Fish Sauce', 'Bread', 'Apple Juice', 'Coke', 'Potato Chips',
   'Froot Loops', 'Oatmeal', 'Snickers', 'Cheddar Cheese', 'Beer', 'Water', 'Cigarettes',
   'Oreos', 'Ham', 'Wine', 'Bananas', 'Spinach', 'Cherries', 'Ketchup', 'Coffee', 'Hot Dogs'];
@@ -31,7 +30,8 @@ var _frequencySorted = false;
 /** ACCOUNTS AND ACCOUNT VARS NOT IMPLEMENTED YET **/
 // loggedIn boolean NOT IMPLEMENTED YET
 var loggedIn = false; // needs to check if the user is logged in, currently does nothing
-// needs to be the group the user joined (groceryList column in items in API), not hard-coded like this
+// needs to be the group the user joined (groceryList column in items in API), not hard-coded like this.
+// probably changes this to '' or something once properly implemented
 var joinedGroup = "startingList";
 
 // make main() async for Futures
@@ -92,13 +92,14 @@ void main() async {
 
   }
 
-  // else use the default list
+  // else use the default list, populated in globals
   else {
 
     // initialize frequency values as all 0s
     for (int i = 0; i < _groceryItems.length; i++) {
       _groceryItemsFrequency.add(0);
     }
+
     // make starting copy list
     _groceryItemsCopy = _groceryItems.toList();
   }
@@ -127,22 +128,8 @@ class GroceryItems extends StatefulWidget {
 
 class _GroceryItemsState extends State<GroceryItems> {
 
-  /* replaced with API call in main() else{} clause, but we're going to want this back */
-  // our grocery list
-  // final _groceryItems = ['Eggs', 'Milk', 'Fish Sauce', 'Bread', 'Apple Juice', 'Coke', 'Potato Chips',
-  //  'Froot Loops', 'Oatmeal', 'Snickers', 'Cheddar Cheese', 'Beer', 'Water', 'Cigarettes',
-  //  'Oreos', 'Ham', 'Wine', 'Bananas', 'Spinach', 'Cherries', 'Ketchup', 'Coffee', 'Hot Dogs'];
-
-  /* replaced in main() else{} clause as a copy of _groceryItems */
-  // final _groceryItemsCopy = ['Eggs', 'Milk', 'Fish Sauce', 'Bread', 'Apple Juice', 'Coke', 'Potato Chips',
-  //  'Froot Loops', 'Oatmeal', 'Snickers', 'Cheddar Cheese', 'Beer', 'Water', 'Cigarettes',
-  //  'Oreos', 'Ham', 'Wine', 'Bananas', 'Spinach', 'Cherries', 'Ketchup', 'Coffee', 'Hot Dogs'];
-
   var finalShoppingList = []; // holds bools for if the final shopping list is checked or unchecked
   var checkedList = []; // holds a copy of _checked that shouldn't be able to be updated for the final shopping list
-
-  /* Replaced in main() else{} clause as less hard-coded version */
-  // final _groceryItemsFrequency = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
   // used for the finished shopping pop-up box
   var _finishedShopping = false;
@@ -375,6 +362,7 @@ class _GroceryItemsState extends State<GroceryItems> {
         builder: (context) { // context shows the relation of this context to others
 
           /** Change to just the GET one if we split _apiCall() into 2 methods? */
+          /** Change this to if (loggedIn && joinedGroup != '') or something? **/
           _apiCall();
 
           /* iterate the set using .map, and create a tile of each list item. list items
@@ -496,7 +484,8 @@ class _GroceryItemsState extends State<GroceryItems> {
   the generate shopping list button in the app bar */
   void _storeList() {
 
-    /** Change to just the GET one if we split _apiCall() into 2 methods? */
+    /** Change to just the GET one if we split _apiCall() into 2 methods? **/
+    /** Change this to if (loggedIn && joinedGroup != '') or something? **/
     _apiCall();
 
     /** Once we get the API working, change _checked to _checked + items returned from API call,
