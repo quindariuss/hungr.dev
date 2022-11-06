@@ -11,6 +11,8 @@
 		568B7F6328B5540900E6E59E /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 568B7F6228B5540900E6E59E /* ContentView.swift */; };
 		568B7F6528B5540A00E6E59E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 568B7F6428B5540A00E6E59E /* Assets.xcassets */; };
 		568B7F6828B5540A00E6E59E /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 568B7F6728B5540A00E6E59E /* Preview Assets.xcassets */; };
+		56FD7F0F2918418C005642AB /* Network.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56FD7F0E2918418C005642AB /* Network.swift */; };
+		56FD7F112918428D005642AB /* GroceryListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56FD7F102918428D005642AB /* GroceryListView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -19,6 +21,8 @@
 		568B7F6228B5540900E6E59E /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		568B7F6428B5540A00E6E59E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		568B7F6728B5540A00E6E59E /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		56FD7F0E2918418C005642AB /* Network.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Network.swift; sourceTree = "<group>"; };
+		56FD7F102918428D005642AB /* GroceryListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroceryListView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -53,6 +57,8 @@
 			children = (
 				568B7F6028B5540900E6E59E /* HungrApp.swift */,
 				568B7F6228B5540900E6E59E /* ContentView.swift */,
+				56FD7F102918428D005642AB /* GroceryListView.swift */,
+				56FD7F0E2918418C005642AB /* Network.swift */,
 				568B7F6428B5540A00E6E59E /* Assets.xcassets */,
 				568B7F6628B5540A00E6E59E /* Preview Content */,
 			);
@@ -139,6 +145,8 @@
 			files = (
 				568B7F6328B5540900E6E59E /* ContentView.swift in Sources */,
 				568B7F6128B5540900E6E59E /* HungrApp.swift in Sources */,
+				56FD7F112918428D005642AB /* GroceryListView.swift in Sources */,
+				56FD7F0F2918418C005642AB /* Network.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
