@@ -8,7 +8,9 @@ import 'dart:io'; // use Directory, File...
 
 /* global variable for initial food list for all new users.
   will be filled as a future/from API call */
-final _groceryItems = [];
+final _groceryItems = ['Eggs', 'Milk', 'Fish Sauce', 'Bread', 'Apple Juice', 'Coke', 'Potato Chips',
+  'Froot Loops', 'Oatmeal', 'Snickers', 'Cheddar Cheese', 'Beer', 'Water', 'Cigarettes',
+  'Oreos', 'Ham', 'Wine', 'Bananas', 'Spinach', 'Cherries', 'Ketchup', 'Coffee', 'Hot Dogs'];
 
 // used for sorting based on frequency
 final _groceryItemsFrequency = [];
@@ -20,13 +22,17 @@ var _groceryItemsCopy = [];
 // holds all of the checked items in a set, so they can't be duplicated
 final _checked = <String>{};
 
-var loggedIn = false; // needs to check if the user is logged in, currently does nothing
-
 var filePath = ''; // path to where this app saves files, calculated in main()
 
 // stores if the list has been alphabetically sorted. used if a new item is added, to put in proper place
 var _alphabeticallySorted = false;
 var _frequencySorted = false;
+
+/** ACCOUNTS AND ACCOUNT VARS NOT IMPLEMENTED YET **/
+// loggedIn boolean NOT IMPLEMENTED YET
+var loggedIn = false; // needs to check if the user is logged in, currently does nothing
+// needs to be the group the user joined (groceryList column in items in API), not hard-coded like this
+var joinedGroup = "startingList";
 
 // make main() async for Futures
 void main() async {
@@ -37,17 +43,11 @@ void main() async {
   var appDocumentsPath = appDocumentsDirectory.path;
   filePath = "$appDocumentsPath";
 
-  // loggedIn boolean NOT IMPLEMENTED YET
-  if (loggedIn) {
-    /** get groceryList from API, check what group they're in...
-        ACTUALLY, don't we want each user to have their own local list?
-        SO, we probably don't want this.
-        API calls should actually only happen when... clicking Add to Shared List / clicking Generate Shopping List? **/
-  }
+  if (File(filePath + "/groceryItems.json").existsSync() && File(filePath + "/groceryItemsCopy.json").existsSync()) {
 
-  // this will likely be changed to the first IF, and above removed
-  // else check if there's a local file, and use that
-  else if (File(filePath + "/groceryItems.json").existsSync() && File(filePath + "/groceryItemsCopy.json").existsSync()) {
+    // clear hard-coded first-time-use items
+    _groceryItems.clear();
+
     // convert the .json json and save in _groceryItems
     var fileContent = await File(filePath + "/groceryItems.json").readAsString();
     var jsonLocalList = jsonDecode(fileContent);
@@ -93,19 +93,10 @@ void main() async {
   }
 
   // else use the default list
-  else { /** actually later let's not do this API call, and just initialize _groceryItems as the global pre-populated, like I did
-      at the beginning of the original version, then we can clear it in the above else if and repopulate it there,
-      making this API call not have to happen. Saving this for later use to see how API calls work, though... **/
+  else {
 
-    // API call to get the initial starting list every user will have
-    var response = await http.get(Uri.parse('http://api.hungr.dev:5000/items?groceryList=startingList'));
-    // convert the Response GET to a JSON (List)
-    var jsonResponse = jsonDecode(response.body);
-    /* populate the initial array with the groceryList startingList's
-   items (their names) from the API call.
-    Also initialize frequency values as all 0s */
-    for (int i = 0; i < jsonResponse.length; i++) {
-      _groceryItems.add(jsonResponse[i]['name']);
+    // initialize frequency values as all 0s
+    for (int i = 0; i < _groceryItems.length; i++) {
       _groceryItemsFrequency.add(0);
     }
     // make starting copy list
@@ -383,8 +374,13 @@ class _GroceryItemsState extends State<GroceryItems> {
         // builder builds the scaffold with the app bar and the body with the list view rows
         builder: (context) { // context shows the relation of this context to others
 
+          /** Change to just the GET one if we split _apiCall() into 2 methods? */
+          _apiCall();
+
           /* iterate the set using .map, and create a tile of each list item. list items
           are in variable checkedItems, iteratively. currently no trailing icon, because it's the end */
+          /** Make a new list from API call of _checked + items returned from API call,
+           and use that instead of _checked.map here?!? **/
           final sharedListTiles = _checked.map((checkedItems) {
             return ListTile(
               title: Text(
@@ -499,6 +495,12 @@ class _GroceryItemsState extends State<GroceryItems> {
   /* pushes the final shopping list screen (4th) on to the stack, after pressing
   the generate shopping list button in the app bar */
   void _storeList() {
+
+    /** Change to just the GET one if we split _apiCall() into 2 methods? */
+    _apiCall();
+
+    /** Once we get the API working, change _checked to _checked + items returned from API call,
+        and use that instead of _checked here?!? **/
     // convert the dynamic set _checked to a personal shopping list, only for the shopper
     checkedList = _checked.toList();
 
@@ -665,11 +667,19 @@ class _GroceryItemsState extends State<GroceryItems> {
                       if (_frequencySorted) { // incremented frequencies, so re-sort
                         _frequencySort();
                       }
+                      // _frequencySort() calls _saveLocalList(), so make this an else so it doesn't happen twice
+                      else {
+                        // update saved files for frequency / checked
+                        _saveLocalList();
+                      }
 
                       setState(() {});
 
-                      // update saved files for frequency / checked
-                      _saveLocalList();
+                      /** We might want to find a way to push the submission downhill to clear everyone in the group's
+                       _checked list? When submitting make a bool for each user who submitted to the list,
+                       set it to False, and next time they check/uncheck a box/click add to shared list,
+                       make an API call to see if the bool is True/False, and if False, clear their _checked list, and
+                       set the bool to True? **/
 
                       /* return to the home screen by pushing. could change GroceryItems() to MyApp() also.
                       Not really sure why we need both of these commands, but with only one, it doesn't work? */
@@ -864,6 +874,35 @@ class _GroceryItemsState extends State<GroceryItems> {
 
     File fileChecked = File(filePath + "/checked.json");
     fileChecked.writeAsString(localListChecked); // write the JSON to local file
+
+    /** Change this to if (loggedIn && joinedGroup != '') or something? **/
+    _apiCall();
+
+  }
+
+  void _apiCall() async {
+
+    /** CHANGE TO 2 METHODS? One to DELETE/POST, and one to GET items to add to _checkedAddedByOtherUser.
+     Then _saveLocalList() can just call the DELETE/POST one, while pushing Add to Shared List or
+     Generate Shopping List can just call the GET one?
+     Or just move the DELETE/POST part to _saveLocalList()? **/
+
+    // API call to update / populate shared list
+    var response = await http.get(Uri.parse('http://api.hungr.dev:5000/items?groceryList=$joinedGroup'));
+    // convert the Response GET to a JSON (List)
+    var jsonResponse = jsonDecode(response.body);
+    /** Now we probably need to DELETE every item from joinedGroup groceryList that was uploaded by this user?
+        Then POST back everything currently in _checked [that's not already in the server's groceryList for no duplicates?]?
+
+        Then we'll probably want to create a new list. _checkedAddedByOtherUser, ex.
+        Have it populate here with every item where thisUserID != API call returned User ID.
+        Then go back to 2nd/4th screen logic and have that create a tile for all items in _checked AND
+        all items in _checkedAddedByOtherUser, ex. **/
+
+    // in the meanwhile, just... print all the names to verify success
+    for (int i = 0; i < jsonResponse.length; i++) {
+      print(jsonResponse[i]['name']);
+    }
 
   }
 
