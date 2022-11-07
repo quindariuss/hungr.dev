@@ -26,6 +26,7 @@ struct GroceryListItemsView: View {
             }
             ForEach($items) { $item in
                 
+                
                 NavigationLink {
                     EdititemView(item: $item)
                 } label: {
@@ -40,7 +41,13 @@ struct GroceryListItemsView: View {
                         Spacer()
                     }
                 }
+                
             }
+            .onDelete(perform: { index in
+                Task {
+                    await Network.shared.deleteItem(id: items[index.first!].id)
+                }
+            })
             .navigationTitle(list.name)
         }
         .task {
