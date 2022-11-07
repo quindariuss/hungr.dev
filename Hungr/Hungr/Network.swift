@@ -11,6 +11,45 @@ class Network {
     static let shared = Network()
     let decoder = JSONDecoder()
     
+    func addItem(item: String, list: GroceryList) async {
+        do {
+            var components = URLComponents(url: URL.itemsURL, resolvingAgainstBaseURL: false)!
+            components.queryItems = [
+                URLQueryItem(name: "name", value: item),
+                URLQueryItem(name: "count", value: "1"),
+                URLQueryItem(name: "groceryList", value: list.name)
+            ]
+            
+            var request = URLRequest(url: components.url!)
+            request.httpMethod = "POST"
+            
+            let (data, response) = try await URLSession.shared.data(for: request)
+            print(String(data: data, encoding: .utf8), response)
+        } catch {
+            print(error)
+        }
+    }
+    
+    func updateItem(item: GroceryListItem) async {
+        do {
+            var components = URLComponents(url: URL.itemsURL, resolvingAgainstBaseURL: false)!
+            components.queryItems = [
+                URLQueryItem(name: "name", value: item.name),
+                URLQueryItem(name: "count", value: item.count.formatted(.number)),
+                URLQueryItem(name: "note", value: item.note),
+                URLQueryItem(name: "id", value: item.id.formatted(.number))
+            ]
+            
+            var request = URLRequest(url: components.url!)
+            request.httpMethod = "PATCH"
+            
+            let (data, response) = try await URLSession.shared.data(for: request)
+            print(String(data: data, encoding: .utf8), response)
+            
+        } catch {
+            print(error)
+        }
+    }
     func getItems(groceryList: GroceryList) async -> [GroceryListItem] {
         do {
            var components = URLComponents(url: URL.itemsURL, resolvingAgainstBaseURL: false)

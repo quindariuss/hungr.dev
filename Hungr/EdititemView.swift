@@ -30,7 +30,9 @@ struct EdititemView: View {
         }
         .navigationTitle(item.name)
         .onChange(of: item) { newValue in
-            print("submit to api")
+            Task {
+                await Network.shared.updateItem(item: item)
+            }
         }
         }
     }

@@ -10,23 +10,35 @@ import SwiftUI
 struct GroceryListItemsView: View {
     @Binding var list: GroceryList
     @State var items = [GroceryListItem]()
+    @State var newItem = ""
     var body: some View {
         List {
+            HStack {
+                TextField("New Item", text: $newItem)
+                Spacer()
+                Button("Add") {
+                    Task {
+                        await Network.shared.addItem(item: newItem , list: list)
+                        items = await Network.shared.getItems(groceryList: list)
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+            }
             ForEach($items) { $item in
                 
                 NavigationLink {
                     EdititemView(item: $item)
                 } label: {
                     
-                HStack {
+                    HStack {
                         Button {
                             print("Completed Item")
                         } label: {
                             Image(systemName: "squareshape")
                         }
                         Text(item.name)
-                    Spacer()
-                }
+                        Spacer()
+                    }
                 }
             }
             .navigationTitle(list.name)
