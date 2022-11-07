@@ -881,7 +881,7 @@ class _GroceryItemsState extends State<GroceryItems> {
      Or just move the DELETE/POST part to _saveLocalList()? **/
 
     // API call to update / populate shared list
-    var response = await http.get(Uri.parse('http://api.hungr.dev:5000/items?groceryList=$joinedGroup'));
+    var response = await http.get(Uri.parse('http://api.hungr.dev/items?groceryList=$joinedGroup'));
     // convert the Response GET to a JSON (List)
     var jsonResponse = jsonDecode(response.body);
     /** Now we probably need to DELETE every item from joinedGroup groceryList that was uploaded by this user?
