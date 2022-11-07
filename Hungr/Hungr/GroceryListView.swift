@@ -8,9 +8,20 @@
 import SwiftUI
 
 struct GroceryListView: View {
+    @State var lists = [GroceryList]()
     var body: some View {
         List {
-            Text("GroceryList")
+            ForEach($lists) { $list in
+                NavigationLink(list.name) {
+                    GroceryListItemsView(list: $list)
+                }
+            }
+        }
+        .task {
+            let gatheredList = await Network.shared.getList()
+            if gatheredList != [] {
+                lists = gatheredList
+            }
         }
     }
 }

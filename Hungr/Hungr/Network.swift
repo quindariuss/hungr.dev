@@ -8,13 +8,32 @@
 import Foundation
 
 class Network {
-    let shared = Network()
+    static let shared = Network()
     let decoder = JSONDecoder()
     
+    func getItems(groceryList: GroceryList) async -> [GroceryListItem] {
+        do {
+           var components = URLComponents(url: URL.itemsURL, resolvingAgainstBaseURL: false)
+            components?.queryItems = [
+                URLQueryItem(name: "groceryList", value: groceryList.name)
+            ]
+            var request = URLRequest(url: components!.url!)
+            request.httpMethod = "GET"
+            
+            let (data , _ ) = try await URLSession.shared.data(for: request)
+            print((String(data: data, encoding: .utf8) ?? ""))
+            let jsonData = try decoder.decode([GroceryListItem].self, from: data)
+            return jsonData
+        } catch {
+           print(error)
+            return [GroceryListItem]()
+        }
+    }
     func getList() async -> [GroceryList] {
         do {
             
-            let (data, response) = try await  URLSession.shared.data(from: URL.listURL)
+            let (data, _ ) = try await  URLSession.shared.data(from: URL.listURL)
+            print(String(data: data, encoding: .utf8) ?? "")
             let jsonData = try decoder.decode([GroceryList].self, from: data)
             return jsonData
         } catch {
@@ -26,7 +45,7 @@ class Network {
 }
 
 extension URL {
-    static let baseURL = URL(string:"http://api.hungr.dev:5000")!
+    static let baseURL = URL(string:"https://api.hungr.dev")!
     static let itemsURL = baseURL.appending(path: "items")
     static let listURL = baseURL.appending(path: "groceryList")
     static let loginURL = baseURL.appending(path: "login")
@@ -36,6 +55,19 @@ extension URL {
 
 // Models
 
-struct GroceryList: Codable {
+struct GroceryList: Codable, Identifiable, Equatable {
+    var id = UUID()
     let name: String
+    
+    enum CodingKeys: CodingKey {
+        case name
+    }
+}
+
+struct GroceryListItem: Codable, Identifiable, Equatable {
+    var id: Int
+    var name: String
+    var count: Int
+    var note: String?
+    var groceryList: String
 }
