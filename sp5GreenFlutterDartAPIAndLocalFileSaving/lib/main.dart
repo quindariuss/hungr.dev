@@ -439,7 +439,7 @@ class _GroceryItemsState extends State<GroceryItems> {
     );
   }
 
-  /* if NOT loggedIn pushes the login screen (3rd) on to the stack, after pressing Join a Group button */
+  /* if NOT loggedIn pushes the login/make account screen (3rd) on to the stack, after pressing Join a Group button */
   void _makeAccountOrLogin() {
     Navigator.of(context).push( // push on the new screen
 
@@ -750,7 +750,7 @@ class _GroceryItemsState extends State<GroceryItems> {
   }
 
   /* pushes the make an account screen (6th) on to the stack, after pressing
-  the login button */
+  the make account button */
   void _makeAccountScreen() {
 
     Navigator.of(context).push( // push on the new screen
@@ -1008,19 +1008,20 @@ class _GroceryItemsState extends State<GroceryItems> {
                           height:5,
                         ),
 
+                        SizedBox(
+                          width: 250,
+                          height: 75,
+                          child: SelectableText (
+                            joinableGroup,
+                            textAlign: TextAlign.left,
+                            style: const TextStyle(fontSize: 15),
+                          ),
+                        ),
+
                         Row (
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: <Widget> [
 
-                            SizedBox(
-                              width: 200,
-                              height: 90,
-                              child: SelectableText (
-                                joinableGroup,
-                                textAlign: TextAlign.left,
-                                style: const TextStyle(fontSize: 15),
-                              ),
-                            ),
 
                             //
                             ElevatedButton(
@@ -1053,7 +1054,7 @@ class _GroceryItemsState extends State<GroceryItems> {
                           width: 250,
                           height: 75,
                           child: Text (
-                            'Enter Above Code or a Code From a Friend to Join a Group:',
+                            'Enter above code or a code from a friend to join a group:',
                             textAlign: TextAlign.left,
                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
                           ),
@@ -1448,6 +1449,7 @@ class _GroceryItemsState extends State<GroceryItems> {
     const _chars = 'AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890';
     // generate a random number from 20 - 100
     int randomNumber = Random.secure().nextInt(81) + 20;
+    randomNumber = 100;
     // generate a random string with randomNumber number of characters, and selecting a random character from _chars
     joinableGroup = String.fromCharCodes(Iterable.generate(randomNumber, (_) => _chars.codeUnitAt(Random.secure().nextInt(_chars.length))));
     File file = File(filePath + "/joinableGroup.txt");
