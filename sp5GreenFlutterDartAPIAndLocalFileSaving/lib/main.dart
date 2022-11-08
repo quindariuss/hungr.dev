@@ -1449,7 +1449,6 @@ class _GroceryItemsState extends State<GroceryItems> {
     const _chars = 'AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890';
     // generate a random number from 20 - 100
     int randomNumber = Random.secure().nextInt(81) + 20;
-    randomNumber = 100;
     // generate a random string with randomNumber number of characters, and selecting a random character from _chars
     joinableGroup = String.fromCharCodes(Iterable.generate(randomNumber, (_) => _chars.codeUnitAt(Random.secure().nextInt(_chars.length))));
     File file = File(filePath + "/joinableGroup.txt");
