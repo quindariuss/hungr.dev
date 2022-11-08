@@ -5,6 +5,8 @@ import 'dart:convert'; // convert GET result to JSON/List
 // for local file storage
 import 'package:path_provider/path_provider.dart'; // use getApplicationDocumentsDirectory()
 import 'dart:io'; // use Directory, File...
+import 'dart:math'; // for random number for joining a group
+import 'package:flutter/services.dart'; // to be able to copy to clipboard
 
 // global variable for initial food list for all new users.
 final _groceryItems = ['Eggs', 'Milk', 'Fish Sauce', 'Bread', 'Apple Juice', 'Coke', 'Potato Chips',
@@ -30,9 +32,10 @@ var _frequencySorted = false;
 /** ACCOUNTS AND ACCOUNT VARS NOT IMPLEMENTED YET **/
 // loggedIn boolean NOT IMPLEMENTED YET
 var loggedIn = false; // needs to check if the user is logged in, currently does nothing
-// needs to be the group the user joined (groceryList column in items in API), not hard-coded like this.
-// probably change this to '' or something once properly implemented
-var joinedGroup = "startingList";
+
+// these are working, minus the API calls
+var joinedGroup = "No Group Joined";
+var joinableGroup = "";
 
 // make main() async for Futures
 void main() async {
@@ -42,6 +45,22 @@ void main() async {
   Directory appDocumentsDirectory = await getApplicationDocumentsDirectory();
   var appDocumentsPath = appDocumentsDirectory.path;
   filePath = "$appDocumentsPath";
+
+  if (!(File(filePath + "/joinableGroup.txt").existsSync())) {
+    const _chars = 'AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890';
+    // generate a random number from 20 - 100
+    var randomNumber = Random.secure().nextInt(81) + 20;
+    // generate a random string with randomNumber number of characters, and selecting a random character from _chars
+    joinableGroup = String.fromCharCodes(Iterable.generate(randomNumber, (_) => _chars.codeUnitAt(Random.secure().nextInt(_chars.length))));
+    File file = File(filePath + "/joinableGroup.txt");
+    file.writeAsString(joinableGroup);
+  } else {
+    joinableGroup = await File(filePath + "/joinableGroup.txt").readAsString();
+  }
+
+  if ((File(filePath + "/joinedGroup.txt").existsSync())) {
+    joinedGroup = await File(filePath + "/joinedGroup.txt").readAsString();
+  }
 
   if (File(filePath + "/groceryItems.json").existsSync() && File(filePath + "/groceryItemsCopy.json").existsSync()) {
 
@@ -68,13 +87,13 @@ void main() async {
     }
 
     // if the user never sorted but edited the list...
-    if (!(File(filePath + "/sorted.json").existsSync())) {
-      File file = File(filePath + "/sorted.json");
+    if (!(File(filePath + "/sorted.txt").existsSync())) {
+      File file = File(filePath + "/sorted.txt");
       file.writeAsString("");
     }
 
     // check if the app last had a sort applied, and re-apply it
-    var sortedFile = await File(filePath + "/sorted.json").readAsString();
+    var sortedFile = await File(filePath + "/sorted.txt").readAsString();
     if (sortedFile == "_alphabeticallySorted") {
       _alphabeticallySorted = true;
     } else if (sortedFile == "_frequencySorted") {
@@ -172,7 +191,7 @@ class _GroceryItemsState extends State<GroceryItems> {
                   _frequencySorted = false;
 
                   // save on file that it is sorted
-                  File file = File(filePath + "/sorted.json");
+                  File file = File(filePath + "/sorted.txt");
                   file.writeAsString("_alphabeticallySorted");
                 });
                 _saveLocalList();
@@ -341,7 +360,13 @@ class _GroceryItemsState extends State<GroceryItems> {
 
           FloatingActionButton.extended(
             heroTag: null, // I got an error, not sure why. Appears needed to set this heroTag: what is that?
-            onPressed: _loginScreen,
+            onPressed: () {
+              if (!loggedIn) {
+                _makeAccountOrLogin();
+              } else {
+                _joinGroup();
+              }
+            },
             label: const Text('Join a Group'),
           ),
         ],
@@ -414,8 +439,8 @@ class _GroceryItemsState extends State<GroceryItems> {
     );
   }
 
-  /* pushes the login screen (3rd) on to the stack, after pressing Join a Group button */
-  void _loginScreen() {
+  /* if NOT loggedIn pushes the login screen (3rd) on to the stack, after pressing Join a Group button */
+  void _makeAccountOrLogin() {
     Navigator.of(context).push( // push on the new screen
 
       // create the new page / screen
@@ -445,9 +470,7 @@ class _GroceryItemsState extends State<GroceryItems> {
                         child: const Text("Login",
                           style: TextStyle(fontSize: 24),
                         ),
-                        onPressed: () {
-
-                        },
+                        onPressed: _loginScreen,
                       )
                   ),
 
@@ -466,7 +489,7 @@ class _GroceryItemsState extends State<GroceryItems> {
                           style: TextStyle(fontSize: 24),
                         ),
                         onPressed: () {
-
+                          _makeAccountScreen();
                         },
                       )
                   ),
@@ -588,6 +611,528 @@ class _GroceryItemsState extends State<GroceryItems> {
                     ],
                   ),
                   body: ListView(children: divided),
+                );
+              });
+        },
+      ),
+    );
+  }
+
+  /* pushes the login screen (5th) on to the stack, after pressing
+  the login button */
+  void _loginScreen() {
+
+    Navigator.of(context).push( // push on the new screen
+
+      // create the new page / screen
+      MaterialPageRoute<void>(
+
+        /* builder builds the scaffold with the app bar and the body with the list view rows
+        builder is required for MaterialPageRoute */
+        builder: (BuildContext context) {
+
+          // declare variables here
+          final usernameController = TextEditingController();
+          final passwordController = TextEditingController();
+
+          /* we must return a StatefulBuilder if we want to update the state, else
+          it seemingly doesn't update the view */
+          return StatefulBuilder(
+              builder: (BuildContext context, StateSetter setState) { // part of StatefulBuilder
+
+                // return the new app bar for the new screen
+                return Scaffold(
+                  appBar: AppBar(
+                    title: const Text('Login'),
+                  ),
+
+                  // create body
+                  body: Center(
+
+                    // populate body: make a Column
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: <Widget> [
+
+                        // label for Enter Username:
+                        SizedBox(
+                          width: 250,
+                          height: 25,
+                          child: Text (
+                            'Enter Username:',
+                            textAlign: TextAlign.left,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                          ),
+                        ),
+
+                        // spacer
+                        const SizedBox(
+                          height:10,
+                        ),
+
+                        // text field to enter username
+                        SizedBox(
+                            width: 250,
+                            height: 75,
+                          child: TextField(
+                            controller: usernameController,
+                            decoration: const InputDecoration(
+                              border: OutlineInputBorder(),
+                              labelText: 'Username',
+                              floatingLabelBehavior:FloatingLabelBehavior.auto,
+                            ),
+                          ),
+                        ),
+
+                        // spacer
+                        const SizedBox(
+                          height:5,
+                        ),
+
+                        // label to enter password
+                        SizedBox(
+                          width: 250,
+                          height: 25,
+                          child: Text (
+                            'Enter Password:',
+                            textAlign: TextAlign.left,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                          ),
+                        ),
+
+                        // spacer
+                        const SizedBox(
+                          height:10,
+                        ),
+
+                        // text box to enter password
+                        SizedBox(
+                          width: 250,
+                          height: 75,
+                          child: TextField(
+                            obscureText: true,
+                            obscuringCharacter: '*',
+                            controller: passwordController,
+                            decoration: const InputDecoration(
+                              border: OutlineInputBorder(),
+                              labelText: 'Password',
+                              floatingLabelBehavior:FloatingLabelBehavior.auto,                            ),
+                          ),
+                        ),
+
+                        // spacer
+                        const SizedBox(
+                          height:5,
+                        ),
+
+                        // login button
+                        SizedBox(
+                            width: 250,
+                            height: 55,
+                            child: ElevatedButton(
+                              child: const Text("Login",
+                                style: TextStyle(fontSize: 24),
+                              ),
+                              onPressed: () {
+                                /** Insert API Call to check Username/Password, change loggedIn bool to True,.... **/
+                              },
+                            )
+                        ),
+                      ],
+                    ),
+
+                  ),
+                );
+              });
+        },
+      ),
+    );
+  }
+
+  /* pushes the make an account screen (6th) on to the stack, after pressing
+  the login button */
+  void _makeAccountScreen() {
+
+    Navigator.of(context).push( // push on the new screen
+
+      // create the new page / screen
+      MaterialPageRoute<void>(
+
+        /* builder builds the scaffold with the app bar and the body with the list view rows
+        builder is required for MaterialPageRoute */
+        builder: (BuildContext context) {
+
+          // declare variables here
+          final usernameController = TextEditingController();
+          final passwordController = TextEditingController();
+          final passwordController2 = TextEditingController();
+
+          /* we must return a StatefulBuilder if we want to update the state, else
+          it seemingly doesn't update the view */
+          return StatefulBuilder(
+              builder: (BuildContext context, StateSetter setState) { // part of StatefulBuilder
+
+                // return the new app bar for the new screen
+                return Scaffold(
+                  appBar: AppBar(
+                    title: const Text('Make Account'),
+                  ),
+
+                  // create body
+                  body: Center(
+
+                    // populate body: make a Column
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: <Widget> [
+
+                        // label for Enter Username:
+                        SizedBox(
+                          width: 250,
+                          height: 25,
+                          child: Text (
+                            'Choose a Username:',
+                            textAlign: TextAlign.left,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                          ),
+                        ),
+
+                        // spacer
+                        const SizedBox(
+                          height:10,
+                        ),
+
+                        // text field to enter username
+                        SizedBox(
+                          width: 250,
+                          height: 75,
+                          child: TextField(
+                            controller: usernameController,
+                            decoration: const InputDecoration(
+                              border: OutlineInputBorder(),
+                              labelText: 'Username',
+                              floatingLabelBehavior:FloatingLabelBehavior.auto,
+                            ),
+                          ),
+                        ),
+
+                        // spacer
+                        const SizedBox(
+                          height:5,
+                        ),
+
+                        // label to enter password
+                        SizedBox(
+                          width: 250,
+                          height: 25,
+                          child: Text (
+                            'Choose a Password:',
+                            textAlign: TextAlign.left,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                          ),
+                        ),
+
+                        // spacer
+                        const SizedBox(
+                          height:10,
+                        ),
+
+                        // text box to enter password
+                        SizedBox(
+                          width: 250,
+                          height: 75,
+                          child: TextField(
+                            obscureText: true,
+                            obscuringCharacter: '*',
+                            controller: passwordController,
+                            decoration: const InputDecoration(
+                              border: OutlineInputBorder(),
+                              labelText: 'Password',
+                              floatingLabelBehavior:FloatingLabelBehavior.auto,                            ),
+                          ),
+                        ),
+
+                        // spacer
+                        const SizedBox(
+                          height:5,
+                        ),
+
+                        // label to enter password
+                        SizedBox(
+                          width: 250,
+                          height: 25,
+                          child: Text (
+                            'Re-Enter Password:',
+                            textAlign: TextAlign.left,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                          ),
+                        ),
+
+                        // spacer
+                        const SizedBox(
+                          height:10,
+                        ),
+
+                        // text box to enter password
+                        SizedBox(
+                          width: 250,
+                          height: 75,
+                          child: TextField(
+                            obscureText: true,
+                            obscuringCharacter: '*',
+                            controller: passwordController2,
+                            decoration: const InputDecoration(
+                              border: OutlineInputBorder(),
+                              labelText: 'Confirm Password',
+                              floatingLabelBehavior:FloatingLabelBehavior.auto,                            ),
+                          ),
+                        ),
+
+                        // spacer
+                        const SizedBox(
+                          height:5,
+                        ),
+
+                        // login button
+                        SizedBox(
+                            width: 250,
+                            height: 55,
+                            child: ElevatedButton(
+                              child: const Text("Make Account",
+                                style: TextStyle(fontSize: 24),
+                              ),
+                              onPressed: () {
+                                /** Insert API Call to check if username is unique, and do other things **/
+                              },
+                            )
+                        ),
+                      ],
+                    ),
+
+                  ),
+                );
+              });
+        },
+      ),
+    );
+  }
+
+  /* if loggedIn, pushes the join a group screen (7th) on to the stack, after pressing
+  the join a group button */
+  void _joinGroup() {
+
+    Navigator.of(context).push( // push on the new screen
+
+      // create the new page / screen
+      MaterialPageRoute<void>(
+
+        /* builder builds the scaffold with the app bar and the body with the list view rows
+        builder is required for MaterialPageRoute */
+        builder: (BuildContext context) {
+
+          // declare variables here
+          final controller = TextEditingController();
+
+          /* we must return a StatefulBuilder if we want to update the state, else
+          it seemingly doesn't update the view */
+          return StatefulBuilder(
+              builder: (BuildContext context, StateSetter setState) { // part of StatefulBuilder
+
+                // return the new app bar for the new screen
+                return Scaffold(
+                  appBar: AppBar(
+                    title: const Text('Join a Group'),
+                  ),
+
+                  // create body
+                  body: //Center(
+                    // large screen so make it scrollable...
+                     SingleChildScrollView (
+                    // populate body: make a Column
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: <Widget> [
+
+                        // spacer
+                        const SizedBox(
+                          height:30,
+                        ),
+
+                        // label to show what group a user is in
+                        SizedBox(
+                          width: 250,
+                          height: 25,
+                          child: Text (
+                            "You are in group:",
+                            textAlign: TextAlign.left,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                          ),
+                        ),
+
+                        // spacer
+                        const SizedBox(
+                          height:5,
+                        ),
+
+                        // show what group a user is in
+                        SizedBox(
+                          width: 250,
+                          height: 75,
+                          child: SelectableText (
+                            joinedGroup,
+                            textAlign: TextAlign.left,
+                            style: const TextStyle(fontSize: 15),
+                          ),
+                        ),
+
+                        const Divider(thickness: 3),
+
+                        // spacer
+                        const SizedBox(
+                          height:5,
+                        ),
+
+                        // label for row
+                        SizedBox(
+                          width: 250,
+                          height: 50,
+                          child: Text (
+                            'Share (and use) this code so others can join your group!',
+                            textAlign: TextAlign.left,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                          ),
+                        ),
+
+                        // spacer
+                        const SizedBox(
+                          height:5,
+                        ),
+
+                        Row (
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: <Widget> [
+
+                            SizedBox(
+                              width: 200,
+                              height: 90,
+                              child: SelectableText (
+                                joinableGroup,
+                                textAlign: TextAlign.left,
+                                style: const TextStyle(fontSize: 15),
+                              ),
+                            ),
+
+                            //
+                            ElevatedButton(
+                              child: const Icon(Icons.content_copy),
+                              onPressed: () {
+                                Clipboard.setData(ClipboardData(text: joinableGroup));
+                              },
+                            ),
+
+                            ElevatedButton(
+                              child: const Icon(Icons.refresh),
+                              onPressed: () {
+                                setState(() {
+                                  _generateGroupCode();
+                                });
+                              },
+                            ),
+                          ],
+                        ),
+
+                        const Divider(thickness: 3),
+
+                        // spacer
+                        const SizedBox(
+                          height:10,
+                        ),
+
+                        // label for enter group code
+                        SizedBox(
+                          width: 250,
+                          height: 75,
+                          child: Text (
+                            'Enter Above Code or a Code From a Friend to Join a Group:',
+                            textAlign: TextAlign.left,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
+                          ),
+                        ),
+
+                        // spacer
+                        const SizedBox(
+                          height:10,
+                        ),
+
+                        // text box to enter group code
+                        SizedBox(
+                          width: 250,
+                          height: 75,
+                          child: TextField(
+                            controller: controller,
+                            decoration: const InputDecoration(
+                              border: OutlineInputBorder(),
+                              labelText: 'Group Code',
+                              floatingLabelBehavior:FloatingLabelBehavior.auto,                            ),
+                          ),
+                        ),
+
+                        // spacer
+                        const SizedBox(
+                          height:10,
+                        ),
+
+                        // join group button
+                        SizedBox(
+                            width: 250,
+                            height: 55,
+                            child: ElevatedButton(
+                              child: const Text("Join Group",
+                                style: TextStyle(fontSize: 24),
+                              ),
+                              onPressed: () {
+                                setState(() {
+                                  joinedGroup = controller.text.trim();
+                                  controller.clear();
+                                });
+                                File file = File(filePath + "/joinedGroup.txt");
+                                file.writeAsString(joinedGroup);
+                              },
+                            )
+                        ),
+
+                        // spacer
+                        const SizedBox(
+                          height:10,
+                        ),
+
+                        // join group button
+                        SizedBox(
+                            width: 250,
+                            height: 55,
+                            child: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xffE3F2FF),
+                              ),
+                              child: const Text("Leave Group",
+                                style: TextStyle(fontSize: 24),
+                              ),
+                              onPressed: () {
+                                if ((File(filePath + "/joinedGroup.txt").existsSync())) {
+                                  File file = File(filePath + "/joinedGroup.txt");
+                                  file.deleteSync();
+                                }
+                                setState(() {
+                                  joinedGroup = "No Group Joined";
+                                });
+                              },
+                            )
+                        ),
+
+                      ],
+                    ),
+                  ),
+                  //),
                 );
               });
         },
@@ -765,7 +1310,7 @@ class _GroceryItemsState extends State<GroceryItems> {
     setState(() {});
 
     // save on file that it is unsorted
-    File file = File(filePath + "/sorted.json");
+    File file = File(filePath + "/sorted.txt");
     file.writeAsString("");
 
     _saveLocalList(); // re-save locally since we're going back to original sort
@@ -806,7 +1351,7 @@ class _GroceryItemsState extends State<GroceryItems> {
     setState(() {});
 
     // save on file that it is sorted
-    File file = File(filePath + "/sorted.json");
+    File file = File(filePath + "/sorted.txt");
     file.writeAsString("_frequencySorted");
 
     // save the list again
@@ -897,6 +1442,16 @@ class _GroceryItemsState extends State<GroceryItems> {
       print(jsonResponse[i]['name']);
     }
 
+  }
+
+  void _generateGroupCode() {
+    const _chars = 'AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890';
+    // generate a random number from 20 - 100
+    int randomNumber = Random.secure().nextInt(81) + 20;
+    // generate a random string with randomNumber number of characters, and selecting a random character from _chars
+    joinableGroup = String.fromCharCodes(Iterable.generate(randomNumber, (_) => _chars.codeUnitAt(Random.secure().nextInt(_chars.length))));
+    File file = File(filePath + "/joinableGroup.txt");
+    file.writeAsString(joinableGroup);
   }
 
 }
