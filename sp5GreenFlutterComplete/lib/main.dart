@@ -425,8 +425,6 @@ class _GroceryItemsState extends State<GroceryItems> {
 
           /* iterate the set using .map, and create a tile of each list item. list items
           are in variable checkedItems, iteratively. currently no trailing icon, because it's the end */
-          /** Make a new list from API call of _checked + items returned from API call,
-           and use that instead of _checked.map here?!? **/
           final sharedListTiles = _checkedAllUsers.map((checkedItems) {
             return ListTile(
               title: Text(
@@ -1310,7 +1308,9 @@ class _GroceryItemsState extends State<GroceryItems> {
                           could POST to the DB, and clear the _checked list... but that'd be some work **/
 
                       // set all visibility in DB to 0, and increment frequencies in DB
-                      _submitAPI(finalShoppingList);
+                      if (loggedIn && joinedGroup != "No Group Joined" && userID != "") {
+                        _submitAPI(finalShoppingList);
+                      }
 
                       /* return to the home screen by pushing. could change GroceryItems() to MyApp() also.
                       Not really sure why we need both of these commands, but with only one, it doesn't work? */
@@ -1595,7 +1595,7 @@ class _GroceryItemsState extends State<GroceryItems> {
     }
   }
 
-  // return true or false is username and password are in DB and matching
+  // return true or false if username and password are in DB and matching
   Future<bool> _login(username, password) async {
     var response = await http.post(Uri.parse('https://api.hungr.dev/login?username=$username&password=$password'));
     if (response.body == "User Logged in") {
@@ -1604,7 +1604,8 @@ class _GroceryItemsState extends State<GroceryItems> {
     return false;
   }
 
-  // sets every item in the group's visible var to 0 after submitting the list
+  // sets every item in the group's visible var to 0 after submitting the list,
+  // and increments purchased item frequencies in the DB
   Future<void> _submitAPI(finalShoppingList) async {
     // API call to get all items in the groceryList group we have joined
     var response = await http.get(Uri.parse('https://api.hungr.dev/items?groceryList=$joinedGroup'));
@@ -1649,6 +1650,7 @@ class _GroceryItemsState extends State<GroceryItems> {
 
   }
 
+  // generates a random group code for users to join
   void _generateGroupCode() {
     const _chars = 'AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890';
     // generate a random number from 20 - 100
