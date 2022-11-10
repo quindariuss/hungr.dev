@@ -23,28 +23,42 @@ var _groceryItemsCopy = [];
 // holds all of the checked items in a set, so they can't be duplicated
 final _checked = <String>{};
 
+// stores _checked + other items in the groceryList group (other user's in the groups' _checked items)
+var _checkedAllUsers = [];
+
 var filePath = ''; // path to where this app saves files, calculated in main()
 
 // stores if the list has been alphabetically sorted. used if a new item is added, to put in proper place
 var _alphabeticallySorted = false;
 var _frequencySorted = false;
 
-/** ACCOUNTS AND ACCOUNT VARS NOT IMPLEMENTED YET **/
-// loggedIn boolean NOT IMPLEMENTED YET
-var loggedIn = false; // needs to check if the user is logged in, currently does nothing
-
-// these are working, minus the API calls
+// account variables
+var loggedIn = false;
+var userID = "";
 var joinedGroup = "No Group Joined";
 var joinableGroup = "";
 
 // make main() async for Futures
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // get the phone's path to where it saves files for this app
   Directory appDocumentsDirectory = await getApplicationDocumentsDirectory();
   var appDocumentsPath = appDocumentsDirectory.path;
   filePath = "$appDocumentsPath";
+
+  // check if the user is logged in from local storage, and update vars
+  if ((File(filePath + "/loggedIn.txt").existsSync())) {
+    var loggedInResponse = await File(filePath + "/loggedIn.txt").readAsString();
+    if (loggedInResponse == "true") {
+      loggedIn = true;
+    }
+  }
+
+  // update userID if logged in
+  if ((File(filePath + "/userID.txt").existsSync()) && loggedIn) {
+    userID = await File(filePath + "/userID.txt").readAsString();
+  }
 
   if (!(File(filePath + "/joinableGroup.txt").existsSync())) {
     const _chars = 'AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890';
@@ -148,7 +162,6 @@ class GroceryItems extends StatefulWidget {
 class _GroceryItemsState extends State<GroceryItems> {
 
   var finalShoppingList = []; // holds bools for if the final shopping list is checked or unchecked
-  var checkedList = []; // holds a copy of _checked that shouldn't be able to be updated for the final shopping list
 
   // used for the finished shopping pop-up box
   var _finishedShopping = false;
@@ -171,7 +184,19 @@ class _GroceryItemsState extends State<GroceryItems> {
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(42)
                   )),
-              onPressed: _viewSharedList,
+              onPressed: () async {
+
+                // update _checkedAllUsers for our view including other user's _checked items
+                _checkedAllUsers = List.from(_checked);
+
+                // sync our _checked list to the server, also adds other user's _checked items to _checkedAllUsers
+                if (loggedIn && joinedGroup != "No Group Joined" && userID != "") {
+                  await _syncCheckedToServer();
+                }
+
+                // display new screen with _checkedAllUsers making the tiles
+                _viewSharedList();
+              },
               child: const Text('Add to Shared List',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.black),),
@@ -236,6 +261,14 @@ class _GroceryItemsState extends State<GroceryItems> {
                 });
                 // update _checked save file
                 _saveLocalList();
+              } else if (selectedValue == 6) { // log out
+                // delete local save files and reset variables
+                File file = File(filePath + "/userID.txt");
+                file.deleteSync();
+                File file2 = File(filePath + "/loggedIn.txt");
+                file2.deleteSync();
+                loggedIn = false;
+                userID = "";
               }
             },
             // lambda expression => creates and populates popupmenu entries with child's
@@ -263,6 +296,10 @@ class _GroceryItemsState extends State<GroceryItems> {
               const PopupMenuItem(
                 value: 5,
                 child: Text('Uncheck All'),
+              ),
+              const PopupMenuItem(
+                value: 6,
+                child: Text('Logout'),
               ),
             ],
           ),
@@ -384,17 +421,13 @@ class _GroceryItemsState extends State<GroceryItems> {
       MaterialPageRoute<void>(
 
         // builder builds the scaffold with the app bar and the body with the list view rows
-        builder: (context) { // context shows the relation of this context to others
-
-          /** Change to just the GET one if we split _apiCall() into 2 methods? */
-          /** Change this to if (loggedIn && joinedGroup != '') or something? **/
-          _apiCall();
+        builder: (context) { // context shows the relation of this context to others`
 
           /* iterate the set using .map, and create a tile of each list item. list items
           are in variable checkedItems, iteratively. currently no trailing icon, because it's the end */
           /** Make a new list from API call of _checked + items returned from API call,
            and use that instead of _checked.map here?!? **/
-          final sharedListTiles = _checked.map((checkedItems) {
+          final sharedListTiles = _checkedAllUsers.map((checkedItems) {
             return ListTile(
               title: Text(
                 checkedItems,
@@ -424,10 +457,22 @@ class _GroceryItemsState extends State<GroceryItems> {
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(42)
                         )),
-                    onPressed: _storeList,
                     child: const Text('Generate Shopping List',
                       textAlign: TextAlign.center,
                       style: TextStyle(color: Colors.black),),
+                    onPressed: () async {
+                      // update _checkedAllUsers for our view including other user's _checked items
+                      _checkedAllUsers = List.from(_checked);
+
+                      // add other user's _checked items to _checkedAllUsers
+                      if (loggedIn && joinedGroup != "No Group Joined" && userID != "") {
+                        await _getChecked();
+                      }
+
+                      // display new screen with _checkedAllUsers making the tiles
+                      _storeList();
+                    },
+
                   ),
                 ),
               ],
@@ -507,18 +552,9 @@ class _GroceryItemsState extends State<GroceryItems> {
   the generate shopping list button in the app bar */
   void _storeList() {
 
-    /** Change to just the GET one if we split _apiCall() into 2 methods? **/
-    /** Change this to if (loggedIn && joinedGroup != '') or something? **/
-    _apiCall();
-
-    /** Once we get the API working, change _checked to _checked + items returned from API call,
-        and use that instead of _checked here?!? **/
-    // convert the dynamic set _checked to a personal shopping list, only for the shopper
-    checkedList = _checked.toList();
-
     /* make a boolean for each item with a checkbox in the list, to update the icon with
     if true, icon's checked, if false, unchecked. Starts false */
-    finalShoppingList = List.filled(checkedList.length, false);
+    finalShoppingList = List.filled(_checkedAllUsers.length, false);
 
     Navigator.of(context).push( // push on the new screen
 
@@ -534,8 +570,8 @@ class _GroceryItemsState extends State<GroceryItems> {
           return StatefulBuilder(
               builder: (BuildContext context, StateSetter setState) { // part of StatefulBuilder
 
-                // iterates through the _checkedList, making each item checkedItems one at a time
-                final sharedListTiles = checkedList.map((checkedItems) {
+                // iterates through the _checkedAllUsers, making each item checkedItems one at a time
+                final sharedListTiles = _checkedAllUsers.map((checkedItems) {
 
                   // make a ListTile
                   return ListTile(
@@ -558,7 +594,7 @@ class _GroceryItemsState extends State<GroceryItems> {
                           const Text('In Cart?'), // our "label" for our check box
                           Icon(
                             // if the matching boolean to checkedItems is true, check_box, if false, check_box_outline_blank
-                            finalShoppingList[checkedList.indexOf(checkedItems)] ? Icons.check_box : Icons.check_box_outline_blank,
+                            finalShoppingList[_checkedAllUsers.indexOf(checkedItems)] ? Icons.check_box : Icons.check_box_outline_blank,
                           ),
                         ],
                       ),
@@ -570,8 +606,8 @@ class _GroceryItemsState extends State<GroceryItems> {
               this works here because we're using StatefulBuilder */
                     onTap: () {
                       setState(() {
-                        finalShoppingList[checkedList.indexOf(checkedItems)] =
-                        !finalShoppingList[checkedList.indexOf(checkedItems)];
+                        finalShoppingList[_checkedAllUsers.indexOf(checkedItems)] =
+                        !finalShoppingList[_checkedAllUsers.indexOf(checkedItems)];
                       });
                     },
                   );
@@ -711,7 +747,7 @@ class _GroceryItemsState extends State<GroceryItems> {
                           height: 75,
                           child: TextField(
                             obscureText: true,
-                            obscuringCharacter: '*',
+                            //obscuringCharacter: '*', the default DOT looks more modern
                             controller: passwordController,
                             decoration: const InputDecoration(
                               border: OutlineInputBorder(),
@@ -733,8 +769,24 @@ class _GroceryItemsState extends State<GroceryItems> {
                               child: const Text("Login",
                                 style: TextStyle(fontSize: 24),
                               ),
-                              onPressed: () {
-                                /** Insert API Call to check Username/Password, change loggedIn bool to True,.... **/
+                              onPressed: () async {
+                                // set loggedIn bool based on provided credentials
+                                loggedIn = await _login(usernameController.text.trim(), passwordController.text.trim());
+
+                                /** Later add confirmation of login / tell the user incorrect username/password **/
+                                // if loggedIn, set the userID
+                                if (loggedIn) {
+                                  userID = usernameController.text.trim();
+                                  File file = File(filePath + "/loggedIn.txt");
+                                  file.writeAsString("true");
+                                  File file2 = File(filePath + "/userID.txt");
+                                  file2.writeAsString(userID);
+                                  Navigator.of(context).popUntil((route) => route.isFirst);
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (context) => const GroceryItems()),
+                                  );
+                                }
                               },
                             )
                         ),
@@ -748,7 +800,6 @@ class _GroceryItemsState extends State<GroceryItems> {
       ),
     );
   }
-
   /* pushes the make an account screen (6th) on to the stack, after pressing
   the make account button */
   void _makeAccountScreen() {
@@ -843,7 +894,7 @@ class _GroceryItemsState extends State<GroceryItems> {
                           height: 75,
                           child: TextField(
                             obscureText: true,
-                            obscuringCharacter: '*',
+                            //obscuringCharacter: '*',
                             controller: passwordController,
                             decoration: const InputDecoration(
                               border: OutlineInputBorder(),
@@ -879,12 +930,13 @@ class _GroceryItemsState extends State<GroceryItems> {
                           height: 75,
                           child: TextField(
                             obscureText: true,
-                            obscuringCharacter: '*',
+                            //obscuringCharacter: '*', the automatic DOT looks more modern than setting this
                             controller: passwordController2,
                             decoration: const InputDecoration(
                               border: OutlineInputBorder(),
                               labelText: 'Confirm Password',
-                              floatingLabelBehavior:FloatingLabelBehavior.auto,                            ),
+                              floatingLabelBehavior:FloatingLabelBehavior.auto,
+                            ),
                           ),
                         ),
 
@@ -893,7 +945,7 @@ class _GroceryItemsState extends State<GroceryItems> {
                           height:5,
                         ),
 
-                        // login button
+                        // make account button
                         SizedBox(
                             width: 250,
                             height: 55,
@@ -901,8 +953,41 @@ class _GroceryItemsState extends State<GroceryItems> {
                               child: const Text("Make Account",
                                 style: TextStyle(fontSize: 24),
                               ),
-                              onPressed: () {
-                                /** Insert API Call to check if username is unique, and do other things **/
+                              onPressed: () async {
+                                // check if the 2 passwords match, and attempt to signup if so
+                                if (passwordController.text.trim() == passwordController2.text.trim()) {
+                                  var response = await http.post(Uri.parse(
+                                      'https://api.hungr.dev/signup?username=' +
+                                          usernameController.text.trim() +
+                                          '&password=' +
+                                          passwordController.text.trim()));
+
+                                  /** Later add an error if username already taken, and perhaps a prompt to login instead of doing it automatically **/
+                                  // for the time being just automatically log the user in
+                                  if (response.body == "success") {
+                                    // set loggedIn bool based on provided credentials
+                                    loggedIn = await _login(
+                                        usernameController.text.trim(),
+                                        passwordController.text.trim());
+                                    // if loggedIn, set the userID
+                                    if (loggedIn) {
+                                      userID = usernameController.text.trim();
+                                      File file = File(
+                                          filePath + "/loggedIn.txt");
+                                      file.writeAsString("true");
+                                      File file2 = File(
+                                          filePath + "/userID.txt");
+                                      file2.writeAsString(userID);
+                                      Navigator.of(context).popUntil((
+                                          route) => route.isFirst);
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(builder: (
+                                            context) => const GroceryItems()),
+                                      );
+                                    }
+                                  }
+                                }
                               },
                             )
                         ),
@@ -1189,16 +1274,20 @@ class _GroceryItemsState extends State<GroceryItems> {
 
                     // if submitting the completed shopping list
                     if (_finishedShopping) {
-                      _checked.clear(); // clear shopping list, as shopping is done
 
                       /* increment _groceryItemsFrequency for submitted items, measuring frequency.
                       iterate bools of finalShoppingList */
                       for (var i = 0; i < finalShoppingList.length; i++) {
                         if (finalShoppingList[i] == true) { // if true when submitted,
                           // increment frequency of proper item, based on _groceryItemsCopy
-                          _groceryItemsFrequency[_groceryItemsCopy.indexOf(checkedList[i])]++;
+                          if (_checked.contains(_checkedAllUsers[i])) {
+                            _groceryItemsFrequency[_groceryItemsCopy.indexOf(_checkedAllUsers[i])]++;
+                          }
                         }
                       }
+
+                      _checked.clear(); // clear shopping list, as shopping is done
+
                       if (_frequencySorted) { // incremented frequencies, so re-sort
                         _frequencySort();
                       }
@@ -1219,6 +1308,9 @@ class _GroceryItemsState extends State<GroceryItems> {
                        We could change the 2nd page to be stateful and allow swiping right of tiles
                        that match the username, and clicking "Add to Shared List" could actually do that, and
                           could POST to the DB, and clear the _checked list... but that'd be some work **/
+
+                      // set all visibility in DB to 0, and increment frequencies in DB
+                      _submitAPI(finalShoppingList);
 
                       /* return to the home screen by pushing. could change GroceryItems() to MyApp() also.
                       Not really sure why we need both of these commands, but with only one, it doesn't work? */
@@ -1279,6 +1371,7 @@ class _GroceryItemsState extends State<GroceryItems> {
                       });
                       _saveLocalList(); // re-save locally
                     }
+
                     // close the AlertDialog
                     Navigator.of(context).pop();
                   },
@@ -1397,7 +1490,7 @@ class _GroceryItemsState extends State<GroceryItems> {
     fileCopy.writeAsString(localListCopy); // write the JSON to local file
 
     // do the same as above with _checkedList
-    checkedList = _checked.toList();
+    var checkedList = _checked.toList();
 
     var localListChecked = "[";
 
@@ -1414,33 +1507,144 @@ class _GroceryItemsState extends State<GroceryItems> {
     File fileChecked = File(filePath + "/checked.json");
     fileChecked.writeAsString(localListChecked); // write the JSON to local file
 
-    /** Change this to if (loggedIn && joinedGroup != '') or something? **/
-    _apiCall();
-
   }
 
-  void _apiCall() async {
+  // syncs our _checked list to the server, also adds other user's _checked items to _checkedAllUsers
+  Future<void> _syncCheckedToServer() async {
 
-    /** CHANGE TO 2 METHODS? One to DELETE/POST, and one to GET items to add to _checkedAddedByOtherUser.
-     Then _saveLocalList() can just call the DELETE/POST one, while pushing Add to Shared List or
-     Generate Shopping List can just call the GET one?
-     Or just move the DELETE/POST part to _saveLocalList()? **/
+    var _checkedCopy = List.from(_checked); // keeps track of what items to add to DB
 
-    // API call to update / populate shared list
-    var response = await http.get(Uri.parse('http://api.hungr.dev/items?groceryList=$joinedGroup'));
+    // API call to get all items in the groceryList group we have joined
+    var response = await http.get(Uri.parse('https://api.hungr.dev/items?groceryList=$joinedGroup'));
     // convert the Response GET to a JSON (List)
     var jsonResponse = jsonDecode(response.body);
-    /** Now we probably need to DELETE every item from joinedGroup groceryList that was uploaded by this user?
-        Then POST back everything currently in _checked [that's not already in the server's groceryList for no duplicates?]?
 
-        Then we'll probably want to create a new list. _checkedAddedByOtherUser, ex.
-        Have it populate here with every item where thisUserID != API call returned User ID.
-        Then go back to 2nd/4th screen logic and have that create a tile for all items in _checked AND
-        all items in _checkedAddedByOtherUser, ex. **/
-
-    // in the meanwhile, just... print all the names to verify success
+    // string to keep track of items to set visibility to 0 in the DB
+    var uncheckedString = '';
+    // string to keep track of items to set visibility to 1 in the DB
+    var patchString = '';
+    // iterate through all items in the server's groceryList for our group
     for (int i = 0; i < jsonResponse.length; i++) {
-      print(jsonResponse[i]['name']);
+
+      // remove already posted things from checked so no duplicates
+      if (_checkedCopy.contains(jsonResponse[i]['name']) && jsonResponse[i]['visible'] == 1) {
+        _checkedCopy.remove(jsonResponse[i]['name']);
+      }
+
+      else if (_checkedCopy.contains(jsonResponse[i]['name']) && jsonResponse[i]['visible'] == 0) {
+        if (patchString != "") {
+          patchString += ",";
+        }
+        patchString += jsonResponse[i]['id'].toString();
+        _checkedCopy.remove(jsonResponse[i]['name']);
+      }
+
+      // remove items that are no longer checked by the user: add to string for API URL
+      else if (jsonResponse[i]['username'] == userID && jsonResponse[i]['visible'] == 1) {
+        if (uncheckedString != "") {
+          uncheckedString += ",";
+        }
+        uncheckedString += jsonResponse[i]['id'].toString();
+      }
+
+      // else if visible it was added by another user and isn't already in _checked, so add it to _checkedAllUsers
+      else if (jsonResponse[i]['visible'] == 1) {
+        _checkedAllUsers.add(jsonResponse[i]['name']);
+      }
+    }
+
+    // set uncheckedString visibility to 0
+    if (uncheckedString != '') {
+      http.patch(Uri.parse('https://api.hungr.dev/items?visible=0&id=$uncheckedString'));
+    }
+
+    // set patchString visibility to 1, and change username to ours
+    if (patchString != '') {
+      http.patch(Uri.parse('https://api.hungr.dev/items?visible=1&username=$userID&id=$patchString'));
+    }
+
+    // add items not already in DB that are checked to the DB: create String for URL
+    var checkedString = '';
+    for (var item in _checkedCopy) {
+      if (checkedString != '') {
+        checkedString += ",";
+      }
+      checkedString += item;
+    }
+    // if not blank, then post
+    if (checkedString != '') {
+      http.post(Uri.parse('https://api.hungr.dev/items?name=$checkedString&count=1&groceryList=$joinedGroup&username=$userID'));
+    }
+  }
+
+  // syncs our _checked list to the server, also adds other user's _checked items to _checkedAllUsers
+  Future<void> _getChecked() async {
+
+    // API call to get all items in the groceryList group we have joined
+    var response = await http.get(Uri.parse('https://api.hungr.dev/items?groceryList=$joinedGroup'));
+    // convert the Response GET to a JSON (List)
+    var jsonResponse = jsonDecode(response.body);
+
+    // iterate through all items in the server's groceryList for our group
+    for (int i = 0; i < jsonResponse.length; i++) {
+
+      // remove already posted things from checked so no duplicates
+      if (!(_checkedAllUsers.contains(jsonResponse[i]['name'])) && jsonResponse[i]['visible'] == 1) {
+        _checkedAllUsers.add(jsonResponse[i]['name']);
+      }
+    }
+  }
+
+  // return true or false is username and password are in DB and matching
+  Future<bool> _login(username, password) async {
+    var response = await http.post(Uri.parse('https://api.hungr.dev/login?username=$username&password=$password'));
+    if (response.body == "User Logged in") {
+      return true;
+    }
+    return false;
+  }
+
+  // sets every item in the group's visible var to 0 after submitting the list
+  Future<void> _submitAPI(finalShoppingList) async {
+    // API call to get all items in the groceryList group we have joined
+    var response = await http.get(Uri.parse('https://api.hungr.dev/items?groceryList=$joinedGroup'));
+    // convert the Response GET to a JSON (List)
+    var jsonResponse = jsonDecode(response.body);
+
+    // figure out which items frequencies to increment in DB
+    var purchasedItems = [];
+    for (var i = 0; i < finalShoppingList.length; i++) {
+      if (finalShoppingList[i] == true) { // if true when submitted,
+        purchasedItems.add(_checkedAllUsers[i]);
+      }
+    }
+
+    // patch all items in the list's visibility to 0 and increment the item ID matching those in purchasedItems
+    var patchString = '';
+    var patchFrequencies = '';
+    var frequencies = '';
+    for (var i = 0; i < jsonResponse.length; i++) {
+      // add all items to patchString to set visibility=0
+      if (patchString != '') {
+        patchString += ',';
+      }
+      patchString += jsonResponse[i]['id'].toString();
+
+      // add items in purchasedItems to patchFrequencies string, and their new frequency to frequencies
+      if (purchasedItems.contains(jsonResponse[i]['name'])) {
+        if (patchFrequencies != '') {
+          patchFrequencies += ',';
+          frequencies += ',';
+        }
+        patchFrequencies += jsonResponse[i]['id'].toString();
+        frequencies += ((jsonResponse[i]['frequency'] + 1).toString());
+      }
+    }
+    if (patchString != '') {
+      http.patch(Uri.parse('https://api.hungr.dev/items?visible=0&id=$patchString'));
+    }
+    if (patchFrequencies != '') {
+      http.patch(Uri.parse('https://api.hungr.dev/items?frequency=$frequencies&id=$patchFrequencies'));
     }
 
   }
@@ -1449,7 +1653,7 @@ class _GroceryItemsState extends State<GroceryItems> {
     const _chars = 'AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890';
     // generate a random number from 20 - 100
     int randomNumber = Random.secure().nextInt(81) + 20;
-    // generate a random string with randomNumber number of characters, and selecting a random character from _chars
+    // generate a random string with randomNumber number of characters, and selecting a random character for each index from _chars
     joinableGroup = String.fromCharCodes(Iterable.generate(randomNumber, (_) => _chars.codeUnitAt(Random.secure().nextInt(_chars.length))));
     File file = File(filePath + "/joinableGroup.txt");
     file.writeAsString(joinableGroup);
