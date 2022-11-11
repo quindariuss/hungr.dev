@@ -366,8 +366,8 @@ class _GroceryItemsState extends State<GroceryItems> {
                   // if remove an item from the viewable list, also remove it from shared/_checked list?
                   // previously it was keeping it, so you could check a box, and then remove it from your local list,
                   // but it would remain in _checked / middle list, with no way to remove it, without re-adding the item...
-                  _groceryItems.remove(_groceryItems[index]);
                   _decoupledChecked.remove(_groceryItems[index]);
+                  _groceryItems.remove(_groceryItems[index]);
                 });
                 _saveLocalList(); // update the locally saved list
                 // disable swipe left, for now
