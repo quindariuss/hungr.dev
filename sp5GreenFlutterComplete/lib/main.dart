@@ -490,7 +490,7 @@ class _GroceryItemsState extends State<GroceryItems> {
             if (loggedIn && joinedGroup != "No Group Joined" && userID != "") {
                 await _syncCheckedToServer();
             };
-            setState(() {});
+            setState((){});
 
             _saveLocalList(); // update the locally saved list
         // disable swipe left, for now
@@ -741,6 +741,9 @@ class _GroceryItemsState extends State<GroceryItems> {
           final usernameController = TextEditingController();
           final passwordController = TextEditingController();
 
+          var loggedInDisplay = false;
+          var _isVisible = false;
+
           /* we must return a StatefulBuilder if we want to update the state, else
           it seemingly doesn't update the view */
           return StatefulBuilder(
@@ -786,6 +789,19 @@ class _GroceryItemsState extends State<GroceryItems> {
                               border: OutlineInputBorder(),
                               labelText: 'Username',
                               floatingLabelBehavior:FloatingLabelBehavior.auto,
+                            ),
+                          ),
+                        ),
+
+                        Visibility(
+                          visible: _isVisible,
+                          child: const SizedBox(
+                            width: 250,
+                            height: 25,
+                            child: Text (
+                              'Incorrect Username or Password',
+                              textAlign: TextAlign.left,
+                              style: const TextStyle(fontSize: 15),
                             ),
                           ),
                         ),
@@ -836,12 +852,19 @@ class _GroceryItemsState extends State<GroceryItems> {
                             width: 250,
                             height: 55,
                             child: ElevatedButton(
-                              child: const Text("Login",
+                              child: loggedInDisplay ? CircularProgressIndicator(
+                                color: Colors.grey[50],
+                              ) : const Text("Login",
                                 style: TextStyle(fontSize: 24),
                               ),
                               onPressed: () async {
                                 // set loggedIn bool based on provided credentials
-                                loggedIn = await _login(usernameController.text.trim(), passwordController.text.trim());
+                                setState(() {
+                                  loggedInDisplay = true;
+                                });
+                                if (usernameController.text.trim().isNotEmpty && passwordController.text.trim().isNotEmpty) {
+                                  loggedIn = await _login(usernameController.text.trim(), passwordController.text.trim());
+                                }
 
                                 /** Later add confirmation of login / tell the user incorrect username/password **/
                                 // if loggedIn, set the userID
@@ -856,6 +879,11 @@ class _GroceryItemsState extends State<GroceryItems> {
                                     context,
                                     MaterialPageRoute(builder: (context) => const GroceryItems()),
                                   );
+                                } else {
+                                  setState(() {
+                                    loggedInDisplay = false;
+                                    _isVisible = true;
+                                  });
                                 }
                               },
                             )
@@ -887,6 +915,9 @@ class _GroceryItemsState extends State<GroceryItems> {
           final usernameController = TextEditingController();
           final passwordController = TextEditingController();
           final passwordController2 = TextEditingController();
+          var _passwordsMatch = true;
+          var _usernameTaken = false;
+          var loggedInDisplay = false;
 
           /* we must return a StatefulBuilder if we want to update the state, else
           it seemingly doesn't update the view */
@@ -933,6 +964,19 @@ class _GroceryItemsState extends State<GroceryItems> {
                               border: OutlineInputBorder(),
                               labelText: 'Username',
                               floatingLabelBehavior:FloatingLabelBehavior.auto,
+                            ),
+                          ),
+                        ),
+
+                        Visibility(
+                          visible: _usernameTaken,
+                          child: SizedBox(
+                            width: 250,
+                            height: 25,
+                            child: Text (
+                              'Username Already Taken',
+                              textAlign: TextAlign.left,
+                              style: const TextStyle(fontSize: 15),
                             ),
                           ),
                         ),
@@ -1010,6 +1054,19 @@ class _GroceryItemsState extends State<GroceryItems> {
                           ),
                         ),
 
+                        Visibility(
+                          visible: !_passwordsMatch,
+                          child: SizedBox(
+                            width: 250,
+                            height: 25,
+                            child: Text (
+                              'Passwords Do Not Match',
+                              textAlign: TextAlign.left,
+                              style: const TextStyle(fontSize: 15),
+                            ),
+                          ),
+                        ),
+
                         // spacer
                         const SizedBox(
                           height:5,
@@ -1020,19 +1077,23 @@ class _GroceryItemsState extends State<GroceryItems> {
                             width: 250,
                             height: 55,
                             child: ElevatedButton(
-                              child: const Text("Make Account",
+                              child: loggedInDisplay ? CircularProgressIndicator(
+                                color: Colors.grey[50],
+                              ) : const Text("Make Account",
                                 style: TextStyle(fontSize: 24),
                               ),
                               onPressed: () async {
+                                setState((){
+                                  loggedInDisplay = true;
+                                });
                                 // check if the 2 passwords match, and attempt to signup if so
-                                if (passwordController.text.trim() == passwordController2.text.trim()) {
+                                if ((passwordController.text.trim() == passwordController2.text.trim()) && passwordController.text.trim().isNotEmpty && usernameController.text.trim().isNotEmpty) {
                                   var response = await http.post(Uri.parse(
                                       'https://api.hungr.dev/signup?username=' +
                                           usernameController.text.trim() +
                                           '&password=' +
                                           passwordController.text.trim()));
 
-                                  /** Later add an error if username already taken, and perhaps a prompt to login instead of doing it automatically **/
                                   // for the time being just automatically log the user in
                                   if (response.body == "success") {
                                     // set loggedIn bool based on provided credentials
@@ -1056,7 +1117,19 @@ class _GroceryItemsState extends State<GroceryItems> {
                                             context) => const GroceryItems()),
                                       );
                                     }
+                                  } else {
+                                    setState(() {
+                                      _usernameTaken = true;
+                                      _passwordsMatch = true;
+                                      loggedInDisplay = false;
+                                    });
                                   }
+                                } else if (passwordController.text.trim() != passwordController2.text.trim()) {
+                                  setState(() {
+                                    _passwordsMatch = false;
+                                    _usernameTaken = false;
+                                    loggedInDisplay = false;
+                                  });
                                 }
                               },
                             )
@@ -1340,7 +1413,7 @@ class _GroceryItemsState extends State<GroceryItems> {
                 TextButton(
                   /* Say confirm or submit based on addOrDelete */
                   child: addOrDelete ? const Text('Submit') : const Text('Confirm'),
-                  onPressed: () {
+                  onPressed: () async {
 
                     // if submitting the completed shopping list
                     if (_finishedShopping) {
@@ -1371,7 +1444,7 @@ class _GroceryItemsState extends State<GroceryItems> {
 
                       // set all visibility in DB to 0, and increment frequencies in DB
                       if (loggedIn && joinedGroup != "No Group Joined" && userID != "") {
-                        _submitAPI(finalShoppingList);
+                        await _submitAPI(finalShoppingList);
                       }
 
                       /* return to the home screen by pushing. could change GroceryItems() to MyApp() also.
@@ -1627,12 +1700,12 @@ class _GroceryItemsState extends State<GroceryItems> {
 
     // set uncheckedString visibility to 0
     if (uncheckedString != '') {
-      http.patch(Uri.parse('https://api.hungr.dev/items?visible=0&id=$uncheckedString'));
+      await http.patch(Uri.parse('https://api.hungr.dev/items?visible=0&id=$uncheckedString'));
     }
 
     // set patchString visibility to 1, and change username to ours, as now we're the one adding it to the sharedList
     if (patchString != '') {
-      http.patch(Uri.parse('https://api.hungr.dev/items?visible=1&username=$userID&id=$patchString'));
+      await http.patch(Uri.parse('https://api.hungr.dev/items?visible=1&username=$userID&id=$patchString'));
     }
 
     // add items not already in DB that are checked to the DB: create String for URL
@@ -1647,7 +1720,7 @@ class _GroceryItemsState extends State<GroceryItems> {
 
     // if not blank, then post
     if (checkedString != '') {
-      http.post(Uri.parse('https://api.hungr.dev/items?name=$checkedString&count=1&groceryList=$joinedGroup&username=$userID'));
+      await http.post(Uri.parse('https://api.hungr.dev/items?name=$checkedString&count=1&groceryList=$joinedGroup&username=$userID'));
     }
 
     return addedItems;
@@ -1719,7 +1792,7 @@ class _GroceryItemsState extends State<GroceryItems> {
       }
     }
     if (patchString != '') {
-      http.patch(Uri.parse('https://api.hungr.dev/items?visible=0&id=$patchString'));
+      await http.patch(Uri.parse('https://api.hungr.dev/items?visible=0&id=$patchString'));
     }
     if (patchFrequencies != '') {
       await http.patch(Uri.parse('https://api.hungr.dev/items?frequency=$frequencies&id=$patchFrequencies'));
