@@ -483,17 +483,16 @@ class _GroceryItemsState extends State<GroceryItems> {
             // the actual logic
             _checked.remove(checkedItems);
             _saveLocalList();
-            setState(() {
-              // to update the view (this is recalculated upon pushing generate shopping list later)
+            // to update the view (this is recalculated upon pushing generate shopping list later)
               _checkedAllUsers.remove(checkedItems);
-            });
 
             // sync our _checked list to the server, also adds other user's _checked items to _checkedAllUsers
             if (loggedIn && joinedGroup != "No Group Joined" && userID != "") {
                 await _syncCheckedToServer();
             };
+            setState(() {});
 
-        _saveLocalList(); // update the locally saved list
+            _saveLocalList(); // update the locally saved list
         // disable swipe left, for now
         }
         },
@@ -1723,8 +1722,7 @@ class _GroceryItemsState extends State<GroceryItems> {
       http.patch(Uri.parse('https://api.hungr.dev/items?visible=0&id=$patchString'));
     }
     if (patchFrequencies != '') {
-      var testResponse = await http.patch(Uri.parse('https://api.hungr.dev/items?frequency=$frequencies&id=$patchFrequencies'));
-      print(testResponse.statusCode);
+      await http.patch(Uri.parse('https://api.hungr.dev/items?frequency=$frequencies&id=$patchFrequencies'));
     }
   }
 
