@@ -22,6 +22,7 @@ var _groceryItemsCopy = [];
 
 // holds all of the checked items in a set, so they can't be duplicated
 final _checked = <String>{};
+final _decoupledChecked = <String>{};
 
 // stores _checked + other items in the groceryList group (other user's in the groups' _checked items)
 var _checkedAllUsers = [];
@@ -114,12 +115,28 @@ Future<void> main() async {
       _frequencySorted = true;
     }
 
+
     // re-check boxes if any were checked
     if (File(filePath + "/checked.json").existsSync()) {
       var fileChecked = await File(filePath + "/checked.json").readAsString();
       var jsonChecked = jsonDecode(fileChecked);
       for (int i = 0; i < jsonChecked.length; i++) {
         _checked.add(jsonChecked[i]['name']);
+      }
+    }
+
+    if (loggedIn && joinedGroup != "No Group Joined" && userID != "" && _checked.length > 0) {
+      var response = await http.get(Uri.parse('https://api.hungr.dev/items?groceryList=$joinedGroup'));
+      // convert the Response GET to a JSON (List)
+      var jsonResponse = jsonDecode(response.body);
+
+      /* check if the list was submitted since last opening the app: that is, that any items
+       submitted by us are now not visible, and clear _checked if so */
+      for (var i = 0; i < jsonResponse.length; i++) {
+        if (jsonResponse[i]['username'] == userID && jsonResponse[i]['visible'] == 0 && _checked.contains(jsonResponse[i]['name'])) {
+          _checked.clear();
+          break;
+        }
       }
     }
 
@@ -184,8 +201,28 @@ class _GroceryItemsState extends State<GroceryItems> {
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(42)
                   )),
+              child: const Text('Add to Shared List',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.black),),
               onPressed: () async {
 
+                // clear _checked if the list has been submitted since the last time the user has added to the shared list
+                if (loggedIn && joinedGroup != "No Group Joined" && userID != "" && _checked.length > 0) {
+                  // API call to get all items in the groceryList group we have joined
+                  var response = await http.get(Uri.parse('https://api.hungr.dev/items?groceryList=$joinedGroup'));
+                  // convert the Response GET to a JSON (List)
+                  var jsonResponse = jsonDecode(response.body);
+                  for (var i = 0; i < jsonResponse.length; i++) {
+                    if (jsonResponse[i]['username'] == userID && jsonResponse[i]['visible'] == 0 && _checked.contains(jsonResponse[i]['name'])) {
+                      _checked.clear();
+                      break;
+                    }
+                  }
+                }
+                /* add all items to _checked from _decoupledChecked so the rest of the logic continues.
+                   _decoupledChecked's logic ends here. */
+                _checked.addAll(_decoupledChecked);
+                _saveLocalList();
                 // update _checkedAllUsers for our view including other user's _checked items
                 _checkedAllUsers = List.from(_checked);
                 var addedItems = _checkedAllUsers;
@@ -197,10 +234,10 @@ class _GroceryItemsState extends State<GroceryItems> {
 
                 // display new screen with _checkedAllUsers making the tiles
                 _viewSharedList(addedItems);
+                setState(() {
+                  _decoupledChecked.clear();
+                });
               },
-              child: const Text('Add to Shared List',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.black),),
             ),
             // make a popup menu (3 dot menu in the top right)
           ),
@@ -248,20 +285,16 @@ class _GroceryItemsState extends State<GroceryItems> {
                 }
 
               } else if (selectedValue == 4) { // check all
-                _checked.clear();
+                _decoupledChecked.clear();
                 for (final item in _groceryItems) {
                   setState(() {
-                    _checked.add(item);
+                    _decoupledChecked.add(item);
                   });
                 }
-                // update _checked save file
-                _saveLocalList();
               } else if (selectedValue == 5) { // uncheck all
                 setState(() {
-                  _checked.clear();
+                  _decoupledChecked.clear();
                 });
-                // update _checked save file
-                _saveLocalList();
               } else if (selectedValue == 6) { // log out
                 // delete local save files and reset variables
                 File file = File(filePath + "/userID.txt");
@@ -317,13 +350,13 @@ class _GroceryItemsState extends State<GroceryItems> {
           final index = i ~/ 2; // gets the number of items, by subtracting dividers
 
           // boolean to show if a box is already checked (contained in the _checked set) or not
-          final alreadyChecked = _checked.contains(_groceryItems[index]);
+          final alreadyChecked = _decoupledChecked.contains(_groceryItems[index]);
 
           return Dismissible(key: ValueKey(_groceryItems[index]), /* wrapping the return ListTile
           return in a Dismissible, and making the ListTile a child: lets us swipe it right.
           We also need to remove it from the array, however */
 
-            /* onDismissed sets the what happens when we swipe. Need to remove item from the array,
+            /* onDismissed sets what happens when we swipe. Need to remove item from the array,
             and make sure we update the state. Setting the direction of the dismissible
             makes it only go start to end, for example: --> swipe right. Switched from onDismissed
              to confirmDismiss: */
@@ -333,8 +366,8 @@ class _GroceryItemsState extends State<GroceryItems> {
                   // if remove an item from the viewable list, also remove it from shared/_checked list?
                   // previously it was keeping it, so you could check a box, and then remove it from your local list,
                   // but it would remain in _checked / middle list, with no way to remove it, without re-adding the item...
-                  _checked.remove(_groceryItems[index]);
                   _groceryItems.remove(_groceryItems[index]);
+                  _decoupledChecked.remove(_groceryItems[index]);
                 });
                 _saveLocalList(); // update the locally saved list
                 // disable swipe left, for now
@@ -349,22 +382,20 @@ class _GroceryItemsState extends State<GroceryItems> {
                 style: const TextStyle(fontSize: 18),
               ),
               trailing: Icon(
-                alreadyChecked ? Icons.check_box : Icons.check_box_outline_blank, /* if (alreadySaved) {
-                                                                          return(?) Icons.favorite;
-                                                                        } else { return(?) Icons.favorite_border } */
+                alreadyChecked ? Icons.check_box : Icons.check_box_outline_blank, /* if (alreadyChecked) {
+                                                                          return(?) Icons.check_box;
+                                                                        } else { return(?) Icons.check_box_outline_blank } */
                 semanticLabel: alreadyChecked ? 'Add to shared List' : 'Remove',
               ),
               onTap: () {
                 // sets the state of the checkbox as above ^
                 setState(() {
                   if (alreadyChecked) {
-                    _checked.remove(_groceryItems[index]);
+                    _decoupledChecked.remove(_groceryItems[index]);
                   } else {
-                    _checked.add(_groceryItems[index]);
+                    _decoupledChecked.add(_groceryItems[index]);
                   }
                 });
-                // update _checked save file
-                _saveLocalList();
               },
               onLongPress: () {
                 _popUp(_groceryItems[index]);
@@ -415,6 +446,7 @@ class _GroceryItemsState extends State<GroceryItems> {
 
   // pushes the new screen (2nd) on to the stack, after pressing the add to shared list button in the app bar
   void _viewSharedList(addedItems) {
+
     Navigator.of(context).push( // push on the new screen
 
       // create the new page / screen
@@ -431,11 +463,49 @@ class _GroceryItemsState extends State<GroceryItems> {
         // return a Container to set background to blue where a user added a listTile
         return Container(color: addedItems.contains(checkedItems) ? Colors.blue[50] : Colors.grey[50], //
 
-            child:
+            child: !(addedItems.contains(checkedItems)) ?
                 // if item not in addedItems: just a ListTile
             ListTile(
               title: Text(checkedItems, style: const TextStyle(fontSize: 18)
-                ,),),
+                ,),) : // basic ListTile if added by another user, OR Dismissible one if added by us
+
+            // if item in addedItems: Dismissible ListTile child
+            Dismissible(key: ValueKey(checkedItems), /* wrapping the return ListTile
+          return in a Dismissible, and making the ListTile a child: lets us swipe it right.
+          We also need to remove it from the array, however */
+
+        /* onDismissed sets what happens when we swipe. Need to remove item from the array,
+            and make sure we update the state. Setting the direction of the dismissible
+            makes it only go start to end, for example: --> swipe right. Switched from onDismissed
+             to confirmDismiss: */
+        confirmDismiss: (direction) async {
+          if (direction == DismissDirection.startToEnd) {
+            // the actual logic
+            _checked.remove(checkedItems);
+            _saveLocalList();
+            setState(() {
+              // to update the view (this is recalculated upon pushing generate shopping list later)
+              _checkedAllUsers.remove(checkedItems);
+            });
+
+            // sync our _checked list to the server, also adds other user's _checked items to _checkedAllUsers
+            if (loggedIn && joinedGroup != "No Group Joined" && userID != "") {
+                await _syncCheckedToServer();
+            };
+
+        _saveLocalList(); // update the locally saved list
+        // disable swipe left, for now
+        }
+        },
+
+          // make a list tile with the text of checkedItems (the item iterable from _checkedAllUsers)
+          child: ListTile(
+            title: Text(
+              checkedItems,
+              style: const TextStyle(fontSize: 18),
+            ),
+          ),
+        ),
         );
       },
       );
@@ -465,8 +535,7 @@ class _GroceryItemsState extends State<GroceryItems> {
                   _checkedAllUsers = List.from(_checked);
 
                   // add other user's _checked items to _checkedAllUsers
-                  if (loggedIn && joinedGroup != "No Group Joined" &&
-                      userID != "") {
+                  if (loggedIn && joinedGroup != "No Group Joined" && userID != "") {
                     await _getChecked();
                   }
 
@@ -1301,16 +1370,6 @@ class _GroceryItemsState extends State<GroceryItems> {
 
                       setState(() {});
 
-                      /** We might want to find a way to push the submission downhill to clear everyone in the group's
-                       _checked list? When submitting make a bool for each user who submitted to the list,
-                       set it to False, and next time they check/uncheck a box/click add to shared list,
-                       make an API call to see if the bool is True/False, and if False, clear their _checked list, and
-                       set the bool to True?
-                       OR
-                       We could change the 2nd page to be stateful and allow swiping right of tiles
-                       that match the username, and clicking "Add to Shared List" could actually do that, and
-                          could POST to the DB, and clear the _checked list... but that'd be some work **/
-
                       // set all visibility in DB to 0, and increment frequencies in DB
                       if (loggedIn && joinedGroup != "No Group Joined" && userID != "") {
                         _submitAPI(finalShoppingList);
@@ -1354,24 +1413,25 @@ class _GroceryItemsState extends State<GroceryItems> {
                         // maintain sorts, if true
                         if (_alphabeticallySorted) {
                           _groceryItems.sort();
-                          _saveLocalList();
                         } else if (_frequencySorted) { // in case of re-adding an item stored in the copy
                           _frequencySort();
                         }
                       });
 
-                      _saveLocalList(); // list is changed, so save locally
+                      // _frequencySort() calls this, so only call it if it's false (wasn't called just above)
+                      if (!_frequencySorted) {
+                        _saveLocalList(); // list is changed, so save locally
+                      }
 
                       // if addOrDelete is false, we're deleting, not adding
                     } else if (!addOrDelete) {
                       setState(() {
-                        // remove from _checked list if removing from local list, in case removing while checked
-                        _checked.remove(groceryListValue);
                         // remove from view list
                         _groceryItems.remove(groceryListValue);
                         // permanently delete from long press, so delete from copy list and related frequency list
                         _groceryItemsFrequency.removeAt(_groceryItemsCopy.indexOf(groceryListValue));
                         _groceryItemsCopy.remove(groceryListValue);
+                        _decoupledChecked.remove(groceryListValue);
                       });
                       _saveLocalList(); // re-save locally
                     }
@@ -1493,11 +1553,10 @@ class _GroceryItemsState extends State<GroceryItems> {
     File fileCopy = File(filePath + "/groceryItemsCopy.json");
     fileCopy.writeAsString(localListCopy); // write the JSON to local file
 
+
     // do the same as above with _checkedList
     var checkedList = _checked.toList();
-
     var localListChecked = "[";
-
     for (int i = 0; i < checkedList.length; i++) {
       if (i != 0) {
         localListChecked += ", ";
@@ -1507,7 +1566,6 @@ class _GroceryItemsState extends State<GroceryItems> {
       localListChecked += "{\"id\": $i, \"name\": \"" + checkedList[i] + "\", \"count\": 1, \"note\": null, \"groceryList\": \"localList\"}";
     }
     localListChecked += "]";
-
     File fileChecked = File(filePath + "/checked.json");
     fileChecked.writeAsString(localListChecked); // write the JSON to local file
 
@@ -1562,7 +1620,9 @@ class _GroceryItemsState extends State<GroceryItems> {
 
       // else if visible it was added by another user and isn't already in _checked, so add it to _checkedAllUsers
       else if (jsonResponse[i]['visible'] == 1) {
-        _checkedAllUsers.add(jsonResponse[i]['name']);
+        if (!(_checkedAllUsers.contains(jsonResponse[i]['name']))) {
+          _checkedAllUsers.add(jsonResponse[i]['name']);
+        }
       }
     }
 
@@ -1630,7 +1690,7 @@ class _GroceryItemsState extends State<GroceryItems> {
     // convert the Response GET to a JSON (List)
     var jsonResponse = jsonDecode(response.body);
 
-    // figure out which items frequencies to increment in DB
+    // figure out which items' frequencies to increment in DB
     var purchasedItems = [];
     for (var i = 0; i < finalShoppingList.length; i++) {
       if (finalShoppingList[i] == true) { // if true when submitted,
@@ -1663,9 +1723,9 @@ class _GroceryItemsState extends State<GroceryItems> {
       http.patch(Uri.parse('https://api.hungr.dev/items?visible=0&id=$patchString'));
     }
     if (patchFrequencies != '') {
-      http.patch(Uri.parse('https://api.hungr.dev/items?frequency=$frequencies&id=$patchFrequencies'));
+      var testResponse = await http.patch(Uri.parse('https://api.hungr.dev/items?frequency=$frequencies&id=$patchFrequencies'));
+      print(testResponse.statusCode);
     }
-
   }
 
   // generates a random group code for users to join
