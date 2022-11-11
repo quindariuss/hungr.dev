@@ -188,14 +188,15 @@ class _GroceryItemsState extends State<GroceryItems> {
 
                 // update _checkedAllUsers for our view including other user's _checked items
                 _checkedAllUsers = List.from(_checked);
+                var addedItems = _checkedAllUsers;
 
                 // sync our _checked list to the server, also adds other user's _checked items to _checkedAllUsers
                 if (loggedIn && joinedGroup != "No Group Joined" && userID != "") {
-                  await _syncCheckedToServer();
+                  addedItems = await _syncCheckedToServer();
                 }
 
                 // display new screen with _checkedAllUsers making the tiles
-                _viewSharedList();
+                _viewSharedList(addedItems);
               },
               child: const Text('Add to Shared List',
                 textAlign: TextAlign.center,
@@ -412,71 +413,74 @@ class _GroceryItemsState extends State<GroceryItems> {
     );
   }
 
-  /* pushes the new screen (2nd) on to the stack, after pressing the shared list view button
-  in the app bar */
-  void _viewSharedList() {
+  // pushes the new screen (2nd) on to the stack, after pressing the add to shared list button in the app bar
+  void _viewSharedList(addedItems) {
     Navigator.of(context).push( // push on the new screen
 
       // create the new page / screen
       MaterialPageRoute<void>(
 
         // builder builds the scaffold with the app bar and the body with the list view rows
-        builder: (context) { // context shows the relation of this context to others`
+        builder: (context) { // context shows the relation of this context to others
+          return StatefulBuilder (builder: (BuildContext context, StateSetter setState) {
 
-          /* iterate the set using .map, and create a tile of each list item. list items
-          are in variable checkedItems, iteratively. currently no trailing icon, because it's the end */
-          final sharedListTiles = _checkedAllUsers.map((checkedItems) {
-            return ListTile(
-              title: Text(
-                checkedItems,
-                style: const TextStyle(fontSize: 18),
-              ),
-            );
-          },
-          );
+      /* iterate the set using .map, and create a tile of each list item. list items
+          are in variable checkedItems, iteratively. currently no trailing icon */
+      final sharedListTiles = _checkedAllUsers.map((checkedItems) {
 
-          /* if the list of checked tiles isn't empty, divideTiles() puts a divider
+        // return a Container to set background to blue where a user added a listTile
+        return Container(color: addedItems.contains(checkedItems) ? Colors.blue[50] : Colors.grey[50], //
+
+            child:
+                // if item not in addedItems: just a ListTile
+            ListTile(
+              title: Text(checkedItems, style: const TextStyle(fontSize: 18)
+                ,),),
+        );
+      },
+      );
+
+      /* if the list of checked tiles isn't empty, divideTiles() puts a divider
           between each row in sharedListTiles, then .toList() turns it into a list
            else, it returns an empty <Widget>[] */
-          final divided = sharedListTiles.isNotEmpty ? ListTile.divideTiles(
-            context: context,
-            tiles: sharedListTiles,
-          ).toList() : <Widget>[];
+      final divided = sharedListTiles.isNotEmpty ? ListTile.divideTiles(context: context, tiles: sharedListTiles,).toList() : <Widget>[];
 
-          // return the new app bar for the new screen
-          return Scaffold(
-            appBar: AppBar(
-              title: const Text('Shared List'),
-              actions: [
-                SizedBox(
-                  width: 150,
-                  child: OutlinedButton(
-                    style: OutlinedButton.styleFrom(backgroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(42)
-                        )),
-                    child: const Text('Generate Shopping List',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.black),),
-                    onPressed: () async {
-                      // update _checkedAllUsers for our view including other user's _checked items
-                      _checkedAllUsers = List.from(_checked);
+      // return the new app bar for the new screen
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Shared List'),
+          actions: [
+            SizedBox(
+              width: 150,
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(backgroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(42)
+                    )),
+                child: const Text('Generate Shopping List',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.black),),
+                onPressed: () async {
+                  // update _checkedAllUsers for our view including other user's _checked items
+                  _checkedAllUsers = List.from(_checked);
 
-                      // add other user's _checked items to _checkedAllUsers
-                      if (loggedIn && joinedGroup != "No Group Joined" && userID != "") {
-                        await _getChecked();
-                      }
+                  // add other user's _checked items to _checkedAllUsers
+                  if (loggedIn && joinedGroup != "No Group Joined" &&
+                      userID != "") {
+                    await _getChecked();
+                  }
 
-                      // display new screen with _checkedAllUsers making the tiles
-                      _storeList();
-                    },
+                  // display new screen with _checkedAllUsers making the tiles
+                  _storeList();
+                },
 
-                  ),
-                ),
-              ],
+              ),
             ),
-            body: ListView(children: divided),
-          );
+          ],
+        ),
+        body: ListView(children: divided),
+      );
+    });
         },
       ),
     );
@@ -1510,7 +1514,7 @@ class _GroceryItemsState extends State<GroceryItems> {
   }
 
   // syncs our _checked list to the server, also adds other user's _checked items to _checkedAllUsers
-  Future<void> _syncCheckedToServer() async {
+  Future<List<dynamic>> _syncCheckedToServer() async {
 
     var _checkedCopy = List.from(_checked); // keeps track of what items to add to DB
 
@@ -1523,23 +1527,32 @@ class _GroceryItemsState extends State<GroceryItems> {
     var uncheckedString = '';
     // string to keep track of items to set visibility to 1 in the DB
     var patchString = '';
+    // array to keep track of which item names the user specifically just added
+    var addedItems = [];
+
     // iterate through all items in the server's groceryList for our group
     for (int i = 0; i < jsonResponse.length; i++) {
 
       // remove already posted things from checked so no duplicates
       if (_checkedCopy.contains(jsonResponse[i]['name']) && jsonResponse[i]['visible'] == 1) {
         _checkedCopy.remove(jsonResponse[i]['name']);
+        if (jsonResponse[i]['username'] == userID) {
+          addedItems.add(jsonResponse[i]['name']);
+        }
       }
 
+      // if already in the DB, prepare to PATCH visibility from 0 --> 1
       else if (_checkedCopy.contains(jsonResponse[i]['name']) && jsonResponse[i]['visible'] == 0) {
         if (patchString != "") {
           patchString += ",";
         }
         patchString += jsonResponse[i]['id'].toString();
         _checkedCopy.remove(jsonResponse[i]['name']);
+        addedItems.add(jsonResponse[i]['name']);
       }
 
-      // remove items that are no longer checked by the user: add to string for API URL
+      // else if it was added by us, but is no longer in _checkedCopy
+      // prepare to remove (set visibility to 0) items that are no longer checked by the user: add to string for API URL
       else if (jsonResponse[i]['username'] == userID && jsonResponse[i]['visible'] == 1) {
         if (uncheckedString != "") {
           uncheckedString += ",";
@@ -1558,7 +1571,7 @@ class _GroceryItemsState extends State<GroceryItems> {
       http.patch(Uri.parse('https://api.hungr.dev/items?visible=0&id=$uncheckedString'));
     }
 
-    // set patchString visibility to 1, and change username to ours
+    // set patchString visibility to 1, and change username to ours, as now we're the one adding it to the sharedList
     if (patchString != '') {
       http.patch(Uri.parse('https://api.hungr.dev/items?visible=1&username=$userID&id=$patchString'));
     }
@@ -1570,14 +1583,19 @@ class _GroceryItemsState extends State<GroceryItems> {
         checkedString += ",";
       }
       checkedString += item;
+      addedItems.add(item);
     }
+
     // if not blank, then post
     if (checkedString != '') {
       http.post(Uri.parse('https://api.hungr.dev/items?name=$checkedString&count=1&groceryList=$joinedGroup&username=$userID'));
     }
+
+    return addedItems;
+
   }
 
-  // syncs our _checked list to the server, also adds other user's _checked items to _checkedAllUsers
+  // adds other user's _checked items to _checkedAllUsers
   Future<void> _getChecked() async {
 
     // API call to get all items in the groceryList group we have joined
@@ -1588,7 +1606,7 @@ class _GroceryItemsState extends State<GroceryItems> {
     // iterate through all items in the server's groceryList for our group
     for (int i = 0; i < jsonResponse.length; i++) {
 
-      // remove already posted things from checked so no duplicates
+      // add any new items to _checkedAllUsers
       if (!(_checkedAllUsers.contains(jsonResponse[i]['name'])) && jsonResponse[i]['visible'] == 1) {
         _checkedAllUsers.add(jsonResponse[i]['name']);
       }
