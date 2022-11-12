@@ -1,6 +1,3 @@
-/** Obscure bug I can fix: if a user is idling on screen 2 and another user purchases items,
- their items in _checked will be re-added back to the DB **/
-
 import 'package:flutter/material.dart';
 // for Dart API calls
 import 'package:http/http.dart' as http; // use API calls (GET...)
@@ -138,18 +135,14 @@ Future<void> main() async {
     }
 
     if (loggedIn && joinedGroup != "No Group Joined" && userID != "" && _checked.length > 0) {
-      var response = await http.get(Uri.parse('https://api.hungr.dev/items?groceryList=$joinedGroup'));
-      // convert the Response GET to a JSON (List)
+      var response = await http.get(Uri.parse('https://api.hungr.dev/groceryList?name=$joinedGroup'));
       var jsonResponse = jsonDecode(response.body);
-
-      /* check if the list was submitted since last opening the app: that is, that any items
-       submitted by us are now not visible, and clear _checked if so */
-      for (var i = 0; i < jsonResponse.length; i++) {
-        if (jsonResponse[i]['username'] == userID && jsonResponse[i]['visible'] == 0 && _checked.contains(jsonResponse[i]['name'])) {
-          _checked.clear();
-          break;
-        }
+      File file = File(filePath + "/purchases.txt");
+      var fileString = await File(filePath + "/purchases.txt").readAsString();
+      if (fileString != jsonResponse[0]['purchases'].toString()) {
+        _checked.clear();
       }
+      file.writeAsString(jsonResponse[0]['purchases'].toString());
     }
 
   }
@@ -220,16 +213,14 @@ class _GroceryItemsState extends State<GroceryItems> {
 
                 // clear _checked if the list has been submitted since the last time the user has added to the shared list
                 if (loggedIn && joinedGroup != "No Group Joined" && userID != "" && _checked.length > 0) {
-                  // API call to get all items in the groceryList group we have joined
-                  var response = await http.get(Uri.parse('https://api.hungr.dev/items?groceryList=$joinedGroup'));
-                  // convert the Response GET to a JSON (List)
+                  var response = await http.get(Uri.parse('https://api.hungr.dev/groceryList?name=$joinedGroup'));
                   var jsonResponse = jsonDecode(response.body);
-                  for (var i = 0; i < jsonResponse.length; i++) {
-                    if (jsonResponse[i]['username'] == userID && jsonResponse[i]['visible'] == 0 && _checked.contains(jsonResponse[i]['name'])) {
-                      _checked.clear();
-                      break;
-                    }
+                  File file = File(filePath + "/purchases.txt");
+                  var fileString = await File(filePath + "/purchases.txt").readAsString();
+                  if (fileString != jsonResponse[0]['purchases'].toString()) {
+                    _checked.clear();
                   }
+                  file.writeAsString(jsonResponse[0]['purchases'].toString());
                 }
                 /* add all items to _checked from _decoupledChecked so the rest of the logic continues.
                    _decoupledChecked's logic ends here. */
@@ -241,7 +232,7 @@ class _GroceryItemsState extends State<GroceryItems> {
 
                 // sync our _checked list to the server, also adds other user's _checked items to _checkedAllUsers
                 if (loggedIn && joinedGroup != "No Group Joined" && userID != "") {
-                  addedItems = await _syncCheckedToServer();
+                  addedItems = await _syncCheckedToServer(false);
                 }
 
                 // display new screen with _checkedAllUsers making the tiles
@@ -510,7 +501,7 @@ class _GroceryItemsState extends State<GroceryItems> {
             if (loggedIn && joinedGroup != "No Group Joined" && userID != "" && timer == null) {
               timer = Timer.periodic(Duration(seconds: 10), (Timer t) async {
                 // use addedItems to update backgrounds correctly
-                addedItems = await _syncCheckedToServer();
+                addedItems = await _syncCheckedToServer(true);
                 setState((){});
               });
             }
@@ -546,7 +537,7 @@ class _GroceryItemsState extends State<GroceryItems> {
             _checkedAllUsers.remove(checkedItems);
             // sync our _checked list to the server, also adds other user's _checked items to _checkedAllUsers
             if (loggedIn && joinedGroup != "No Group Joined" && userID != "") {
-              await _syncCheckedToServer();
+              await _syncCheckedToServer(false);
             };
             setState((){});
 
@@ -1389,13 +1380,18 @@ class _GroceryItemsState extends State<GroceryItems> {
                               child: const Text("Join Group",
                                 style: TextStyle(fontSize: 24),
                               ),
-                              onPressed: () {
+                              onPressed: () async {
                                 setState(() {
                                   joinedGroup = controller.text.trim();
                                   controller.clear();
                                 });
+                                await http.post(Uri.parse('https://api.hungr.dev/groceryList?name=$joinedGroup'));
+                                var response = await http.get(Uri.parse('https://api.hungr.dev/groceryList?name=$joinedGroup'));
+                                var jsonResponse = jsonDecode(response.body);
                                 File file = File(filePath + "/joinedGroup.txt");
                                 file.writeAsString(joinedGroup);
+                                File file2 = File(filePath + "/purchases.txt");
+                                file2.writeAsString(jsonResponse[0]['purchases'].toString());
                               },
                             )
                         ),
@@ -1724,7 +1720,7 @@ class _GroceryItemsState extends State<GroceryItems> {
 
   /* syncs our _checked list to the server, adds other user's _checked items to _checkedAllUsers,
   and returns which items we added to the DB in addedItems */
-  Future<List<dynamic>> _syncCheckedToServer() async {
+  Future<List<dynamic>> _syncCheckedToServer(idling) async {
 
     var _checkedCopy = List.from(_checked); // keeps track of what items to add to DB
 
@@ -1737,11 +1733,21 @@ class _GroceryItemsState extends State<GroceryItems> {
     var uncheckedString = '';
     // string to keep track of items to set visibility to 1 in the DB
     var patchString = '';
-    // string to keep track of items removed by another user
-    var removed = '';
     // array to keep track of which item names the user specifically added
     var addedItems = [];
 
+    if (idling) {
+      var response2 = await http.get(Uri.parse('https://api.hungr.dev/groceryList?name=$joinedGroup'));
+      var jsonResponse2 = jsonDecode(response2.body);
+      File file = File(filePath + "/purchases.txt");
+      var fileString = await File(filePath + "/purchases.txt").readAsString();
+      if (fileString != jsonResponse2[0]['purchases'].toString()) {
+        _checked.clear();
+        _checkedCopy.clear();
+      }
+      file.writeAsString(jsonResponse2[0]['purchases'].toString());
+    }
+    
     // iterate through all items in the server's groceryList for our group
     for (int i = 0; i < jsonResponse.length; i++) {
 
@@ -1795,6 +1801,7 @@ class _GroceryItemsState extends State<GroceryItems> {
       await http.patch(Uri.parse('https://api.hungr.dev/items?visible=1&username=$userID&id=$patchString'));
     }
 
+
     // add items not already in DB that are checked to the DB: create String for URL
     var checkedString = '';
     for (var item in _checkedCopy) {
@@ -1845,6 +1852,11 @@ class _GroceryItemsState extends State<GroceryItems> {
   /* sets every item in the group's visible var to 0 after submitting the list,
   and increments purchased item frequencies in the DB */
   Future<void> _submitAPI(finalShoppingList) async {
+
+    // increment purchases counter
+    await http.patch(Uri.parse('https://api.hungr.dev/groceryList?name=$joinedGroup'));
+
+    // increment purchases counter
     // API call to get all items in the groceryList group we have joined
     var response = await http.get(Uri.parse('https://api.hungr.dev/items?groceryList=$joinedGroup'));
     // convert the Response GET to a JSON (List)
@@ -1885,6 +1897,12 @@ class _GroceryItemsState extends State<GroceryItems> {
     if (patchFrequencies != '') {
       await http.patch(Uri.parse('https://api.hungr.dev/items?frequency=$frequencies&id=$patchFrequencies'));
     }
+
+    File file2 = File(filePath + "/purchases.txt");
+    var incrementString = await File(filePath + "/purchases.txt").readAsString();
+    var incrementInt = int.parse(incrementString);
+    incrementInt++;
+    file2.writeAsString(incrementInt.toString());
   }
 
   // generates a random group code for users to join
