@@ -1,3 +1,8 @@
+/** Things to do:
+ * PUSH NOTIFICATIONS
+ * Ads
+ * Stop user from double tapping buttons **/
+
 import 'package:flutter/material.dart';
 // for Dart API calls
 import 'package:http/http.dart' as http; // use API calls (GET...)
@@ -213,6 +218,7 @@ class _GroceryItemsState extends State<GroceryItems> {
 
                 // clear _checked if the list has been submitted since the last time the user has added to the shared list
                 if (loggedIn && joinedGroup != "No Group Joined" && userID != "" && _checked.length > 0) {
+                  // we want this to happen before we call _syncChecked... could make it a method
                   var response = await http.get(Uri.parse('https://api.hungr.dev/groceryList?name=$joinedGroup'));
                   var jsonResponse = jsonDecode(response.body);
                   File file = File(filePath + "/purchases.txt");
@@ -1150,11 +1156,8 @@ class _GroceryItemsState extends State<GroceryItems> {
                                 });
                                 // check if the 2 passwords match, and attempt to signup if so
                                 if ((passwordController.text.trim() == passwordController2.text.trim()) && passwordController.text.trim().isNotEmpty && usernameController.text.trim().isNotEmpty) {
-                                  var response = await http.post(Uri.parse(
-                                      'https://api.hungr.dev/signup?username=' +
-                                          usernameController.text.trim() +
-                                          '&password=' +
-                                          passwordController.text.trim()));
+                                  var response = await http.post(Uri.parse('https://api.hungr.dev/signup?username=' +
+                                      usernameController.text.trim() + '&password=' + passwordController.text.trim()));
                                   // for the time being just automatically log the user in
                                   if (response.body == "success") {
                                     // set loggedIn bool based on provided credentials
@@ -1381,17 +1384,33 @@ class _GroceryItemsState extends State<GroceryItems> {
                                 style: TextStyle(fontSize: 24),
                               ),
                               onPressed: () async {
+                                joinedGroup = controller.text.trim();
                                 setState(() {
-                                  joinedGroup = controller.text.trim();
                                   controller.clear();
                                 });
-                                await http.post(Uri.parse('https://api.hungr.dev/groceryList?name=$joinedGroup'));
-                                var response = await http.get(Uri.parse('https://api.hungr.dev/groceryList?name=$joinedGroup'));
-                                var jsonResponse = jsonDecode(response.body);
-                                File file = File(filePath + "/joinedGroup.txt");
-                                file.writeAsString(joinedGroup);
-                                File file2 = File(filePath + "/purchases.txt");
-                                file2.writeAsString(jsonResponse[0]['purchases'].toString());
+                                var response = await http.post(Uri.parse('https://api.hungr.dev/groceryList?name=$joinedGroup'));
+                                // in case they're joining an already existing group
+                                if (response.body == 'success' || response.body == 'Group Already Added') {
+                                  response = await http.get(Uri.parse('https://api.hungr.dev/groceryList?name=$joinedGroup'));
+                                  var jsonResponse = jsonDecode(response.body);
+                                  File file = File(filePath + "/joinedGroup.txt");
+                                  file.writeAsString(joinedGroup);
+                                  File file2 = File(filePath + "/purchases.txt");
+                                  file2.writeAsString(jsonResponse[0]['purchases'].toString());
+                                  // if there's some error and the group doesn't added AND doesn't exist? Ex API failure
+                                } else {
+                                  if ((File(filePath + "/joinedGroup.txt").existsSync())) {
+                                    File file = File(filePath + "/joinedGroup.txt");
+                                    file.deleteSync();
+                                  }
+                                  if ((File(filePath + "/purchases.txt").existsSync())) {
+                                    File file = File(filePath + "/purchases.txt");
+                                    file.deleteSync();
+                                  }
+                                  setState(() {
+                                    joinedGroup = "No Group Joined";
+                                  });
+                                }
                               },
                             )
                         ),
@@ -1747,7 +1766,7 @@ class _GroceryItemsState extends State<GroceryItems> {
       }
       file.writeAsString(jsonResponse2[0]['purchases'].toString());
     }
-    
+
     // iterate through all items in the server's groceryList for our group
     for (int i = 0; i < jsonResponse.length; i++) {
 
@@ -1885,17 +1904,18 @@ class _GroceryItemsState extends State<GroceryItems> {
       if (purchasedItems.contains(jsonResponse[i]['name'])) {
         if (patchFrequencies != '') {
           patchFrequencies += ',';
-          frequencies += ',';
         }
-        patchFrequencies += jsonResponse[i]['id'].toString();
-        frequencies += ((jsonResponse[i]['frequency'] + 1).toString());
+        patchFrequencies += "'";
+        patchFrequencies += jsonResponse[i]['name'].toString();
+        patchFrequencies += "'";
       }
     }
+
     if (patchString != '') {
       await http.patch(Uri.parse('https://api.hungr.dev/items?visible=0&id=$patchString'));
     }
     if (patchFrequencies != '') {
-      await http.patch(Uri.parse('https://api.hungr.dev/items?frequency=$frequencies&id=$patchFrequencies'));
+      await http.patch(Uri.parse('https://api.hungr.dev/items?groceryList=$joinedGroup&names=$patchFrequencies'));
     }
 
     File file2 = File(filePath + "/purchases.txt");
