@@ -33,6 +33,7 @@ var filePath = ''; // path to where this app saves files, calculated in main()
 // stores if the list has been alphabetically sorted. used if a new item is added, to put in proper place
 var _alphabeticallySorted = false;
 var _frequencySorted = false;
+var _groupFrequencySorted = false;
 
 // account variables
 var loggedIn = false;
@@ -40,8 +41,8 @@ var userID = "";
 var joinedGroup = "No Group Joined";
 var joinableGroup = "";
 
+// re-sets timer if popping Shopping List screen
 var submitted = false;
-var activateTimer = true;
 
 // make API calls every few seconds to update certain screens
 Timer? timer; // ? makes this nullable, so we don't have to initialize it
@@ -120,8 +121,9 @@ Future<void> main() async {
       _alphabeticallySorted = true;
     } else if (sortedFile == "_frequencySorted") {
       _frequencySorted = true;
+    } else if (sortedFile == "_groupFrequencySorted") {
+      _groupFrequencySorted = true;
     }
-
 
     // re-check boxes if any were checked
     if (File(filePath + "/checked.json").existsSync()) {
@@ -251,7 +253,7 @@ class _GroceryItemsState extends State<GroceryItems> {
           PopupMenuButton(
 
             // logic for the option chosen goes here
-            onSelected: (selectedValue) {
+            onSelected: (selectedValue) async {
               if (selectedValue == 0) { // sort alphabetically
                 // in setState to update the view
                 setState(() {
@@ -259,7 +261,7 @@ class _GroceryItemsState extends State<GroceryItems> {
                   _groceryItems.sort();
                   _alphabeticallySorted = true;
                   _frequencySorted = false;
-
+                  _groupFrequencySorted = false;
                   // save on file that it is sorted
                   File file = File(filePath + "/sorted.txt");
                   file.writeAsString("_alphabeticallySorted");
@@ -267,9 +269,11 @@ class _GroceryItemsState extends State<GroceryItems> {
                 _saveLocalList();
               } else if (selectedValue == 1) { // sort by purchase frequency
                 _frequencySort();
-              } else if (selectedValue == 2) { // unsort
+              } else if (selectedValue == 2 && loggedIn && userID != "" && joinedGroup != "No Group Joined") { // sort by group purchase frequency
+                await _groupFrequencySort();
+              } else if (selectedValue == 3) { // unsort
                 _unsort(); // call un-sort algorithm, using copy of the list
-              } else if (selectedValue == 3) { // repopulate deleted items
+              } else if (selectedValue == 4) { // repopulate deleted items
                 // re add items in the copy that aren't in the view
                 for (final item in _groceryItemsCopy) {
                   // if not in _groceryItems
@@ -287,29 +291,52 @@ class _GroceryItemsState extends State<GroceryItems> {
                   _saveLocalList();
                 } else if (_frequencySorted) {
                   _frequencySort();
+                } else if (_groupFrequencySorted && loggedIn && joinedGroup != "No Group Joined" && userID != "") {
+                  await _groupFrequencySort();
                 } else {
                   _unsort();
                 }
 
-              } else if (selectedValue == 4) { // check all
+              } else if (selectedValue == 5) { // check all
                 _decoupledChecked.clear();
                 for (final item in _groceryItems) {
                   setState(() {
                     _decoupledChecked.add(item);
                   });
                 }
-              } else if (selectedValue == 5) { // uncheck all
+              } else if (selectedValue == 6) { // uncheck all
                 setState(() {
                   _decoupledChecked.clear();
                 });
-              } else if (selectedValue == 6) { // log out
+              } else if (selectedValue == 7) { // log out
                 // delete local save files and reset variables
-                File file = File(filePath + "/userID.txt");
-                file.deleteSync();
-                File file2 = File(filePath + "/loggedIn.txt");
-                file2.deleteSync();
-                loggedIn = false;
+                if ((File(filePath + "/userID.txt").existsSync())) {
+                  File file = File(filePath + "/userID.txt");
+                  file.deleteSync();
+                }
+                if ((File(filePath + "/loggedIn.txt").existsSync())) {
+                  File file2 = File(filePath + "/loggedIn.txt");
+                  file2.deleteSync();
+                }
+                if ((File(filePath + "/joinedGroup.txt").existsSync())) {
+                  File file3 = File(filePath + "/joinedGroup.txt");
+                  file3.deleteSync();
+                }
+                if ((File(filePath + "/checked.txt").existsSync())) {
+                  File file4 = File(filePath + "/checked.json");
+                  file4.writeAsString("[]");
+                }
                 userID = "";
+                loggedIn = false;
+                joinedGroup = "No Group Joined";
+                _checked.clear();
+                _groupFrequencySorted = false;
+                _decoupledChecked.clear();
+                if (_groupFrequencySorted) {
+                  File file5 = File(filePath + "/sorted.txt");
+                  file5.writeAsString("");
+                }
+                setState(() {});
               }
             },
             // lambda expression => creates and populates popupmenu entries with child's
@@ -324,22 +351,26 @@ class _GroceryItemsState extends State<GroceryItems> {
               ),
               const PopupMenuItem(
                 value: 2,
-                child: Text('Unsort'),
+                child: Text('Sort By Group Purchase Frequency'),
               ),
               const PopupMenuItem(
                 value: 3,
-                child: Text('Repopulate Deleted Items'),
+                child: Text('Unsort'),
               ),
               const PopupMenuItem(
                 value: 4,
-                child: Text('Check All'),
+                child: Text('Repopulate Deleted Items'),
               ),
               const PopupMenuItem(
                 value: 5,
-                child: Text('Uncheck All'),
+                child: Text('Check All'),
               ),
               const PopupMenuItem(
                 value: 6,
+                child: Text('Uncheck All'),
+              ),
+              const PopupMenuItem(
+                value: 7,
                 child: Text('Logout'),
               ),
             ],
@@ -473,7 +504,7 @@ class _GroceryItemsState extends State<GroceryItems> {
              UPDATE: UGLY workaround implemented where we just pop and re-push this screen, there has to be a better way ...**/
             // start a timer to make API calls if logged in and a group is joined
             if (loggedIn && joinedGroup != "No Group Joined" && userID != "") {
-              if (timer == null && activateTimer) {
+              if (timer == null) {
                 timer = Timer.periodic(Duration(seconds: 10), (Timer t) async {
                   addedItems = await _syncCheckedToServer();
                   setState((){});
@@ -753,8 +784,7 @@ class _GroceryItemsState extends State<GroceryItems> {
         },
       ),
     ).then((value) async {
-      /** This DOESN'T WORK: doesn't set the state [namely restarting the timer] on if pressing back to shared list??
-      UPDATE: UGLY workaround implemented where we just pop and re-push this screen, there has to be a better way ...**/
+      /** UPDATE: UGLY workaround implemented where we just pop and re-push this screen, there has to be a better way... **/
 
       if (submitted) {
         submitted = false;
@@ -1459,6 +1489,7 @@ class _GroceryItemsState extends State<GroceryItems> {
 
                     // if submitting the completed shopping list
                     if (_finishedShopping) {
+                      submitted = true;
                       /* increment _groceryItemsFrequency for submitted items, measuring frequency.
                       iterate bools of finalShoppingList */
                       for (var i = 0; i < finalShoppingList.length; i++) {
@@ -1474,6 +1505,8 @@ class _GroceryItemsState extends State<GroceryItems> {
 
                       if (_frequencySorted) { // incremented frequencies, so re-sort
                         _frequencySort();
+                      } else if (_groupFrequencySorted && userID != "" && loggedIn && joinedGroup != "No Group Joined") {
+                        await _groupFrequencySort();
                       }
                       // _frequencySort() calls _saveLocalList(), so make this an else so it doesn't happen twice
                       else {
@@ -1481,22 +1514,17 @@ class _GroceryItemsState extends State<GroceryItems> {
                         _saveLocalList();
                       }
 
-                      setState(() {});
-
                       // set all visibility in DB to 0, and increment frequencies in DB
                       if (loggedIn && joinedGroup != "No Group Joined" && userID != "") {
                         await _submitAPI(finalShoppingList);
                       }
 
-                      submitted = true;
-
                       /* return to the home screen by pushing. could change GroceryItems() to MyApp() also.
                       Not really sure why we need both of these commands, but with only one, it doesn't work? */
-                      Navigator.of(context).popUntil((route) => route.isFirst);
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const GroceryItems()),
-                      );
+                        Navigator.of(context).popUntil((route) => route.isFirst);
+                        Navigator.push(context, MaterialPageRoute(builder: (context) => const GroceryItems()),
+                        );
+
                       // else if adding a custom item to _groceryItems
                     } else if (controller.text.trim().isNotEmpty) { // don't add if length = 0 or only spaces entered
 
@@ -1513,7 +1541,7 @@ class _GroceryItemsState extends State<GroceryItems> {
                       }
                       controller.text = splitBySpace.join(' '); // join words back with spaces
 
-                      setState(() {
+                      setState(() async {
                         /* add the item to the list. if() statement checks if the item is already
                         in the list, and doesn't copy it if so. */
                         if (!_groceryItems.contains(controller.text)) {
@@ -1530,11 +1558,16 @@ class _GroceryItemsState extends State<GroceryItems> {
                           _groceryItems.sort();
                         } else if (_frequencySorted) { // in case of re-adding an item stored in the copy
                           _frequencySort();
+                        } else if (_groupFrequencySorted && userID != "" && loggedIn && joinedGroup != "No Group Joined") {
+                          await _groupFrequencySort();
+                          // if _groupFrequencySorted is true, but one of the above is false, set it to false
+                        } else if (_groupFrequencySorted) {
+                          _groupFrequencySorted = false;
                         }
                       });
 
                       // _frequencySort() calls this, so only call it if it's false (wasn't called just above)
-                      if (!_frequencySorted) {
+                      if (!_frequencySorted && !_groupFrequencySorted) {
                         _saveLocalList(); // list is changed, so save locally
                       }
 
@@ -1570,6 +1603,7 @@ class _GroceryItemsState extends State<GroceryItems> {
     // set boolean to false, now that we're unsorting
     _alphabeticallySorted = false;
     _frequencySorted = false;
+    _groupFrequencySorted = false;
     // hold everything currently in the view, before we clear the view
     final groceryItemsPlaceHolder = List.from(_groceryItems);
     // clear the list that displays the view
@@ -1593,6 +1627,7 @@ class _GroceryItemsState extends State<GroceryItems> {
 
     //re-set sorting bools
     _frequencySorted = true;
+    _groupFrequencySorted = false;
     _alphabeticallySorted = false;
     // hold everything currently in the view/needed for sorting, before we clear the view
     final groceryItemsCopyPlaceHolder = List.from(_groceryItemsCopy);
@@ -1858,6 +1893,48 @@ class _GroceryItemsState extends State<GroceryItems> {
     joinableGroup = String.fromCharCodes(Iterable.generate(randomNumber, (_) => _chars.codeUnitAt(Random.secure().nextInt(_chars.length))));
     File file = File(filePath + "/joinableGroup.txt");
     file.writeAsString(joinableGroup);
+  }
+
+  Future<void> _groupFrequencySort() async {
+
+    // API call to get all items in the groceryList group we have joined
+    var response = await http.get(Uri.parse('https://api.hungr.dev/items?groceryList=$joinedGroup&desc=desc'));
+    // convert the Response GET to a JSON (List)
+    var jsonResponse = jsonDecode(response.body);
+
+    //re-set sorting bools
+    _frequencySorted = false;
+    _alphabeticallySorted = false;
+    _groupFrequencySorted = true;
+
+    // store a copy of _groceryItems to repopulate from
+    final groceryItemsPlaceHolder = List.from(_groceryItems);
+
+    // clear the list that displays the view
+    _groceryItems.clear();
+
+    // loop through our sorted response, repopulating _groceryItems in the correct order
+    for (var i = 0; i < jsonResponse.length; i++) {
+      if (groceryItemsPlaceHolder.contains(jsonResponse[i]['name'])) {
+        groceryItemsPlaceHolder.remove(jsonResponse[i]['name']);
+        _groceryItems.add(jsonResponse[i]['name']);
+      }
+    }
+
+    // add any items that are local but not in DB back as well
+    for (var i = 0; i < groceryItemsPlaceHolder.length; i++) {
+      _groceryItems.add(groceryItemsPlaceHolder[i]);
+    }
+
+    //reset the view
+    setState(() {});
+
+    // save on file that it is sorted
+    File file = File(filePath + "/sorted.txt");
+    file.writeAsString("_groupFrequencySorted");
+
+    // save the list again
+    _saveLocalList();
   }
 
 }
