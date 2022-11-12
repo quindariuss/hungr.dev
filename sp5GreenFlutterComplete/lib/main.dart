@@ -500,19 +500,16 @@ class _GroceryItemsState extends State<GroceryItems> {
 
           return StatefulBuilder (builder: (BuildContext context, StateSetter setState) {
 
-            /** This currently only works going forward, if _storeList pop()s back here the timer doesn't restart.
-             REMOVED UGLY workaround: pop() back to homescreen then push this screen back on. I removed that; I don't like it.
-             Possible real fix: change how screens work, call here from the shared list screen by moving
-             Navigator.of(context).push() over there so we can use .then() after **/
-            // start a timer to make API calls if logged in and a group is joined
-            if (loggedIn && joinedGroup != "No Group Joined" && userID != "") {
-              if (timer == null) {
-                timer = Timer.periodic(Duration(seconds: 10), (Timer t) async {
-                  print("balls");
-                  addedItems = await _syncCheckedToServer();
-                  setState((){});
-                });
-              }
+            /* start a timer to make API calls if logged in and a group is joined
+            This probably shouldn't be in a builder, hence needing if (timer == null)
+            so it doesn't keep making timers in an infinite loop due to calling setState over and over,
+            but it works and I'm not sure where/how to move it */
+            if (loggedIn && joinedGroup != "No Group Joined" && userID != "" && timer == null) {
+              timer = Timer.periodic(Duration(seconds: 10), (Timer t) async {
+                // use addedItems to update backgrounds correctly
+                addedItems = await _syncCheckedToServer();
+                setState((){});
+              });
             }
 
       /* iterate the set using .map, and create a tile of each list item. list items
@@ -617,11 +614,10 @@ class _GroceryItemsState extends State<GroceryItems> {
     });
         },
       ),
-      // do then() for popping back to last screen, to stop the timer
+      // do then() for if we pop back to last screen, to stop the timer
     ).then((value) {
       timer?.cancel();
       timer = null;
-      setState((){});
     });
   }
 
@@ -1522,6 +1518,8 @@ class _GroceryItemsState extends State<GroceryItems> {
                       Navigator.of(context).popUntil((route) => route.isFirst);
                       Navigator.push(context, MaterialPageRoute(builder: (context) => const GroceryItems()),
                       );
+                      // set state of homescreen being put back
+                      setState((){});
 
                       // else if adding a custom item to _groceryItems
                     } else if (controller.text.trim().isNotEmpty) { // don't add if length = 0 or only spaces entered
@@ -1612,7 +1610,7 @@ class _GroceryItemsState extends State<GroceryItems> {
         _groceryItems.add(listEntry);
       }
     }
-    setState(() {});
+    setState((){});
 
     // save on file that it is unsorted
     File file = File(filePath + "/sorted.txt");
@@ -1621,6 +1619,7 @@ class _GroceryItemsState extends State<GroceryItems> {
     _saveLocalList(); // re-save locally since we're going back to original sort
   }
 
+  // sorts the list on local (individual) frequency
   void _frequencySort() {
 
     //re-set sorting bools
@@ -1654,7 +1653,7 @@ class _GroceryItemsState extends State<GroceryItems> {
 
     }
     // reset the view
-    setState(() {});
+    setState((){});
 
     // save on file that it is sorted
     File file = File(filePath + "/sorted.txt");
@@ -1664,6 +1663,7 @@ class _GroceryItemsState extends State<GroceryItems> {
     _saveLocalList();
   }
 
+  // saves groceryItems, groceryItemsCopy, checked, and frequencies locally
   void _saveLocalList() {
 
     // start json string
@@ -1701,7 +1701,6 @@ class _GroceryItemsState extends State<GroceryItems> {
     File fileCopy = File(filePath + "/groceryItemsCopy.json");
     fileCopy.writeAsString(localListCopy); // write the JSON to local file
 
-
     // do the same as above with _checkedList
     var checkedList = _checked.toList();
     var localListChecked = "[";
@@ -1719,7 +1718,8 @@ class _GroceryItemsState extends State<GroceryItems> {
 
   }
 
-  // syncs our _checked list to the server, also adds other user's _checked items to _checkedAllUsers
+  /* syncs our _checked list to the server, adds other user's _checked items to _checkedAllUsers,
+  and returns which items we added to the DB in addedItems */
   Future<List<dynamic>> _syncCheckedToServer() async {
 
     var _checkedCopy = List.from(_checked); // keeps track of what items to add to DB
@@ -1735,7 +1735,7 @@ class _GroceryItemsState extends State<GroceryItems> {
     var patchString = '';
     // string to keep track of items removed by another user
     var removed = '';
-    // array to keep track of which item names the user specifically just added
+    // array to keep track of which item names the user specifically added
     var addedItems = [];
 
     // iterate through all items in the server's groceryList for our group
@@ -1806,6 +1806,7 @@ class _GroceryItemsState extends State<GroceryItems> {
       await http.post(Uri.parse('https://api.hungr.dev/items?name=$checkedString&count=1&groceryList=$joinedGroup&username=$userID'));
     }
 
+    // return what items have our username on them in the DB to color them blue, to show we can remove them
     return addedItems;
 
   }
@@ -1837,8 +1838,8 @@ class _GroceryItemsState extends State<GroceryItems> {
     return false;
   }
 
-  // sets every item in the group's visible var to 0 after submitting the list,
-  // and increments purchased item frequencies in the DB
+  /* sets every item in the group's visible var to 0 after submitting the list,
+  and increments purchased item frequencies in the DB */
   Future<void> _submitAPI(finalShoppingList) async {
     // API call to get all items in the groceryList group we have joined
     var response = await http.get(Uri.parse('https://api.hungr.dev/items?groceryList=$joinedGroup'));
@@ -1893,6 +1894,7 @@ class _GroceryItemsState extends State<GroceryItems> {
     file.writeAsString(joinableGroup);
   }
 
+  // sort the list by the frequency purchases of the joined group stored in the DB
   Future<void> _groupFrequencySort() async {
 
     // API call to get all items in the groceryList group we have joined
@@ -1925,7 +1927,7 @@ class _GroceryItemsState extends State<GroceryItems> {
     }
 
     // reset the view
-    setState(() {});
+    setState((){});
 
     // save on file that it is sorted
     File file = File(filePath + "/sorted.txt");
