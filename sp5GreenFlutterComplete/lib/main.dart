@@ -618,6 +618,7 @@ class _GroceryItemsState extends State<GroceryItems> {
     ).then((value) {
       timer?.cancel();
       timer = null;
+      setState((){});
     });
   }
 
@@ -1537,7 +1538,6 @@ class _GroceryItemsState extends State<GroceryItems> {
                       }
                       controller.text = splitBySpace.join(' '); // join words back with spaces
 
-                      setState(() async {
                         /* add the item to the list. if() statement checks if the item is already
                         in the list, and doesn't copy it if so. */
                         if (!_groceryItems.contains(controller.text)) {
@@ -1560,12 +1560,13 @@ class _GroceryItemsState extends State<GroceryItems> {
                         } else if (_groupFrequencySorted) {
                           _groupFrequencySorted = false;
                         }
-                      });
 
                       // _frequencySort() calls this, so only call it if it's false (wasn't called just above)
                       if (!_frequencySorted && !_groupFrequencySorted) {
                         _saveLocalList(); // list is changed, so save locally
                       }
+
+                      setState((){});
 
                       // if addOrDelete is false, we're deleting, not adding
                     } else if (!addOrDelete) {
