@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart'; // use getApplicationDocument
 import 'dart:io'; // use Directory, File...
 import 'dart:math'; // for random number for joining a group
 import 'package:flutter/services.dart'; // to be able to copy to clipboard
+import 'dart:async'; // to user Timers
 
 // global variable for initial food list for all new users.
 final _groceryItems = ['Eggs', 'Milk', 'Fish Sauce', 'Bread', 'Apple Juice', 'Coke', 'Potato Chips',
@@ -38,6 +39,9 @@ var loggedIn = false;
 var userID = "";
 var joinedGroup = "No Group Joined";
 var joinableGroup = "";
+
+// make API calls every few seconds to update certain screens
+Timer? timer; // ? makes this nullable, so we don't have to initialize it
 
 // make main() async for Futures
 Future<void> main() async {
@@ -344,15 +348,19 @@ class _GroceryItemsState extends State<GroceryItems> {
       body: ListView.builder(
         itemCount: _groceryItems.length * 2, /* Set the list size.
                             * 2 for the divider after every item */
-        padding: const EdgeInsets.all(16.0),
+        //padding: const EdgeInsets.all(16.0),
         itemBuilder: (context, i) { // builds what we'll populate the list with
-          if (i.isOdd) return const Divider(); // make a divider between items
           final index = i ~/ 2; // gets the number of items, by subtracting dividers
+          if (i.isOdd) return Container( color: _checked.contains(_groceryItems[index]) ? Colors.blue[50] : Colors.grey[50],
+              child: Divider()); // make a divider between items
 
-          // boolean to show if a box is already checked (contained in the _checked set) or not
+          /* boolean to show if a box is checked (contained in _decoupledChecked set) or not
+             note that this is now cleared upon pressing add to shared list */
           final alreadyChecked = _decoupledChecked.contains(_groceryItems[index]);
 
-          return Dismissible(key: ValueKey(_groceryItems[index]), /* wrapping the return ListTile
+          // wrap in a container to set tile background color
+          return Container( color: _checked.contains(_groceryItems[index]) ? Colors.blue[50] : Colors.grey[50],
+          child: Dismissible(key: ValueKey(_groceryItems[index]), /* wrapping the return ListTile
           return in a Dismissible, and making the ListTile a child: lets us swipe it right.
           We also need to remove it from the array, however */
 
@@ -401,6 +409,7 @@ class _GroceryItemsState extends State<GroceryItems> {
                 _popUp(_groceryItems[index]);
               },
             ),
+          ),
           );
         },
       ),
@@ -454,7 +463,20 @@ class _GroceryItemsState extends State<GroceryItems> {
 
         // builder builds the scaffold with the app bar and the body with the list view rows
         builder: (context) { // context shows the relation of this context to others
+
           return StatefulBuilder (builder: (BuildContext context, StateSetter setState) {
+
+            /** This currently only works going forward, if _storeList pop()s back here the timer doesn't restart? **/
+            // start a timer to make API calls if logged in and a group is joined
+            if (loggedIn && joinedGroup != "No Group Joined" && userID != "") {
+              if (timer == null) {
+                timer = Timer.periodic(Duration(seconds: 10), (Timer t) async {
+                  await _syncCheckedToServer();
+                  setState((){});
+                  print("bals");
+                });
+              }
+            }
 
       /* iterate the set using .map, and create a tile of each list item. list items
           are in variable checkedItems, iteratively. currently no trailing icon */
@@ -530,6 +552,8 @@ class _GroceryItemsState extends State<GroceryItems> {
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.black),),
                 onPressed: () async {
+                  timer?.cancel();
+                  timer = null;
                   // update _checkedAllUsers for our view including other user's _checked items
                   _checkedAllUsers = List.from(_checked);
 
@@ -551,7 +575,11 @@ class _GroceryItemsState extends State<GroceryItems> {
     });
         },
       ),
-    );
+    ).then((value) {
+      timer?.cancel();
+      timer = null;
+      setState(() {});
+    });
   }
 
   /* if NOT loggedIn pushes the login/make account screen (3rd) on to the stack, after pressing Join a Group button */
@@ -721,7 +749,10 @@ class _GroceryItemsState extends State<GroceryItems> {
               });
         },
       ),
-    );
+    ).then((value) {
+      timer = null;
+      setState(() {}); /** This DOESN'T WORK: doesn't set the state [namely restarting the timer] on if pressing back to shared list?? **/
+    });
   }
 
   /* pushes the login screen (5th) on to the stack, after pressing
@@ -866,7 +897,6 @@ class _GroceryItemsState extends State<GroceryItems> {
                                   loggedIn = await _login(usernameController.text.trim(), passwordController.text.trim());
                                 }
 
-                                /** Later add confirmation of login / tell the user incorrect username/password **/
                                 // if loggedIn, set the userID
                                 if (loggedIn) {
                                   userID = usernameController.text.trim();
@@ -932,7 +962,7 @@ class _GroceryItemsState extends State<GroceryItems> {
 
                   // create body
                   body: Center(
-
+                  child: SingleChildScrollView (
                     // populate body: make a Column
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -1084,7 +1114,9 @@ class _GroceryItemsState extends State<GroceryItems> {
                               ),
                               onPressed: () async {
                                 setState((){
-                                  loggedInDisplay = true;
+                                  if (passwordController.text.trim().isNotEmpty && usernameController.text.trim().isNotEmpty) {
+                                    loggedInDisplay = true;
+                                  }
                                 });
                                 // check if the 2 passwords match, and attempt to signup if so
                                 if ((passwordController.text.trim() == passwordController2.text.trim()) && passwordController.text.trim().isNotEmpty && usernameController.text.trim().isNotEmpty) {
@@ -1093,7 +1125,6 @@ class _GroceryItemsState extends State<GroceryItems> {
                                           usernameController.text.trim() +
                                           '&password=' +
                                           passwordController.text.trim()));
-
                                   // for the time being just automatically log the user in
                                   if (response.body == "success") {
                                     // set loggedIn bool based on provided credentials
@@ -1117,7 +1148,7 @@ class _GroceryItemsState extends State<GroceryItems> {
                                             context) => const GroceryItems()),
                                       );
                                     }
-                                  } else {
+                                  } else if (response.body == "Username Taken") {
                                     setState(() {
                                       _usernameTaken = true;
                                       _passwordsMatch = true;
@@ -1136,7 +1167,7 @@ class _GroceryItemsState extends State<GroceryItems> {
                         ),
                       ],
                     ),
-
+                  ),
                   ),
                 );
               });
@@ -1417,7 +1448,7 @@ class _GroceryItemsState extends State<GroceryItems> {
 
                     // if submitting the completed shopping list
                     if (_finishedShopping) {
-
+                      timer = null;
                       /* increment _groceryItemsFrequency for submitted items, measuring frequency.
                       iterate bools of finalShoppingList */
                       for (var i = 0; i < finalShoppingList.length; i++) {
@@ -1657,6 +1688,8 @@ class _GroceryItemsState extends State<GroceryItems> {
     var uncheckedString = '';
     // string to keep track of items to set visibility to 1 in the DB
     var patchString = '';
+    // string to keep track of items removed by another user
+    var removed = '';
     // array to keep track of which item names the user specifically just added
     var addedItems = [];
 
@@ -1695,6 +1728,11 @@ class _GroceryItemsState extends State<GroceryItems> {
         if (!(_checkedAllUsers.contains(jsonResponse[i]['name']))) {
           _checkedAllUsers.add(jsonResponse[i]['name']);
         }
+      }
+
+      // else if it is in _checkedAllUsers but visibility is 0, remove it from _checkedAllUsers, as another user removed it
+      else if (_checkedAllUsers.contains(jsonResponse[i]['name']) && jsonResponse[i]['visible'] == 0) {
+        _checkedAllUsers.remove(jsonResponse[i]['name']);
       }
     }
 
