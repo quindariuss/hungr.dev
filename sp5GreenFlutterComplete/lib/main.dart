@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http; // use API calls (GET...)
 import 'dart:convert'; // convert GET result to JSON/List
 // for local file storage
-import 'package:path_provider/path_provider.dart'; // use getApplicationDocumentsDirectory()
-import 'dart:io'; // use Directory, File...
+import 'package:path_provider/path_provider.dart'; // to use getApplicationDocumentsDirectory()
+import 'dart:io'; // to use Directory, File...
 import 'dart:math'; // for random number for joining a group
 import 'package:flutter/services.dart'; // to be able to copy to clipboard
 import 'dart:async'; // to user Timers
@@ -41,7 +41,10 @@ var userID = "";
 var joinedGroup = "No Group Joined";
 var joinableGroup = "";
 
-// make API calls every few seconds to update certain screens
+// to reset the timer
+var submitted = false;
+
+// make API calls every few seconds to update shared list screen
 Timer? timer; // ? makes this nullable, so we don't have to initialize it
 
 // make main() async for Futures
@@ -505,6 +508,7 @@ class _GroceryItemsState extends State<GroceryItems> {
             if (loggedIn && joinedGroup != "No Group Joined" && userID != "") {
               if (timer == null) {
                 timer = Timer.periodic(Duration(seconds: 10), (Timer t) async {
+                  print("balls");
                   addedItems = await _syncCheckedToServer();
                   setState((){});
                 });
@@ -539,11 +543,10 @@ class _GroceryItemsState extends State<GroceryItems> {
             _checked.remove(checkedItems);
             _saveLocalList();
             // to update the view (this is recalculated upon pushing generate shopping list later)
-              _checkedAllUsers.remove(checkedItems);
-
+            _checkedAllUsers.remove(checkedItems);
             // sync our _checked list to the server, also adds other user's _checked items to _checkedAllUsers
             if (loggedIn && joinedGroup != "No Group Joined" && userID != "") {
-                await _syncCheckedToServer();
+              await _syncCheckedToServer();
             };
             setState((){});
 
@@ -585,6 +588,7 @@ class _GroceryItemsState extends State<GroceryItems> {
                   textAlign: TextAlign.center,
                   style: TextStyle(color: Colors.black),),
                 onPressed: () async {
+                  // cancel the timer so it doesn't keep running
                   timer?.cancel();
                   timer = null;
                   // update _checkedAllUsers for our view including other user's _checked items
@@ -596,7 +600,12 @@ class _GroceryItemsState extends State<GroceryItems> {
                   }
 
                   // display new screen with _checkedAllUsers making the tiles
-                  _storeList();
+                  Navigator.of(context).push(_storeList()).then((value) {
+                    if (!submitted) {
+                      setState((){});
+                    }
+                    submitted = false;
+                  });
                 },
 
               ),
@@ -608,10 +617,11 @@ class _GroceryItemsState extends State<GroceryItems> {
     });
         },
       ),
+      // do then() for popping back to last screen, to stop the timer
     ).then((value) {
       timer?.cancel();
       timer = null;
-      setState(() {});
+      setState((){});
     });
   }
 
@@ -681,16 +691,14 @@ class _GroceryItemsState extends State<GroceryItems> {
 
   /* pushes the final shopping list screen (4th) on to the stack, after pressing
   the generate shopping list button in the app bar */
-  void _storeList() {
+  MaterialPageRoute<void> _storeList() {
 
     /* make a boolean for each item with a checkbox in the list, to update the icon with
     if true, icon's checked, if false, unchecked. Starts false */
     finalShoppingList = List.filled(_checkedAllUsers.length, false);
 
-    Navigator.of(context).push( // push on the new screen
-
       // create the new page / screen
-      MaterialPageRoute<void>(
+      return MaterialPageRoute<void>(
 
         /* builder builds the scaffold with the app bar and the body with the list view rows
         builder is required for MaterialPageRoute */
@@ -783,8 +791,7 @@ class _GroceryItemsState extends State<GroceryItems> {
                 );
               });
         },
-      ),
-    ).then((value) async {});
+      );
   }
 
   /* pushes the login screen (5th) on to the stack, after pressing
@@ -1480,6 +1487,7 @@ class _GroceryItemsState extends State<GroceryItems> {
 
                     // if submitting the completed shopping list
                     if (_finishedShopping) {
+                      submitted = true;
                       /* increment _groceryItemsFrequency for submitted items, measuring frequency.
                       iterate bools of finalShoppingList */
                       for (var i = 0; i < finalShoppingList.length; i++) {
