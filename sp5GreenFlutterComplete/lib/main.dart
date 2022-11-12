@@ -706,7 +706,8 @@ class _GroceryItemsState extends State<GroceryItems> {
                 final sharedListTiles = _checkedAllUsers.map((checkedItems) {
 
                   // make a ListTile
-                  return ListTile(
+                  return Container ( color: _checked.contains(checkedItems) ? Colors.blue[50] : Colors.grey[50],
+                  child: ListTile(
 
                     // the text is the item in the list
                     title: Text(
@@ -742,6 +743,7 @@ class _GroceryItemsState extends State<GroceryItems> {
                         !finalShoppingList[_checkedAllUsers.indexOf(checkedItems)];
                       });
                     },
+                  ),
                   );
                 },
                 );
@@ -1521,9 +1523,9 @@ class _GroceryItemsState extends State<GroceryItems> {
 
                       /* return to the home screen by pushing. could change GroceryItems() to MyApp() also.
                       Not really sure why we need both of these commands, but with only one, it doesn't work? */
-                        Navigator.of(context).popUntil((route) => route.isFirst);
-                        Navigator.push(context, MaterialPageRoute(builder: (context) => const GroceryItems()),
-                        );
+                      Navigator.of(context).popUntil((route) => route.isFirst);
+                      Navigator.push(context, MaterialPageRoute(builder: (context) => const GroceryItems()),
+                      );
 
                       // else if adding a custom item to _groceryItems
                     } else if (controller.text.trim().isNotEmpty) { // don't add if length = 0 or only spaces entered
@@ -1655,7 +1657,7 @@ class _GroceryItemsState extends State<GroceryItems> {
       groceryItemsCopyPlaceHolder.remove(groceryItemsCopyPlaceHolder[index]);
 
     }
-    //reset the view
+    // reset the view
     setState(() {});
 
     // save on file that it is sorted
@@ -1926,7 +1928,7 @@ class _GroceryItemsState extends State<GroceryItems> {
       _groceryItems.add(groceryItemsPlaceHolder[i]);
     }
 
-    //reset the view
+    // reset the view
     setState(() {});
 
     // save on file that it is sorted
