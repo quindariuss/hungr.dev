@@ -41,9 +41,6 @@ var userID = "";
 var joinedGroup = "No Group Joined";
 var joinableGroup = "";
 
-// re-sets timer if popping Shopping List screen
-var submitted = false;
-
 // make API calls every few seconds to update certain screens
 Timer? timer; // ? makes this nullable, so we don't have to initialize it
 
@@ -500,8 +497,10 @@ class _GroceryItemsState extends State<GroceryItems> {
 
           return StatefulBuilder (builder: (BuildContext context, StateSetter setState) {
 
-            /** This currently only works going forward, if _storeList pop()s back here the timer doesn't restart?
-             UPDATE: UGLY workaround implemented where we just pop and re-push this screen, there has to be a better way ...**/
+            /** This currently only works going forward, if _storeList pop()s back here the timer doesn't restart.
+             REMOVED UGLY workaround: pop() back to homescreen then push this screen back on. I removed that; I don't like it.
+             Possible real fix: change how screens work, call here from the shared list screen by moving
+             Navigator.of(context).push() over there so we can use .then() after **/
             // start a timer to make API calls if logged in and a group is joined
             if (loggedIn && joinedGroup != "No Group Joined" && userID != "") {
               if (timer == null) {
@@ -785,17 +784,7 @@ class _GroceryItemsState extends State<GroceryItems> {
               });
         },
       ),
-    ).then((value) async {
-      /** UPDATE: UGLY workaround implemented where we just pop and re-push this screen, there has to be a better way... **/
-
-      if (submitted) {
-        submitted = false;
-      } else {
-        var addedItems = await _syncCheckedToServer();
-        Navigator.of(context).pop();
-        _viewSharedList(addedItems);
-      }
-    });
+    ).then((value) async {});
   }
 
   /* pushes the login screen (5th) on to the stack, after pressing
@@ -1491,7 +1480,6 @@ class _GroceryItemsState extends State<GroceryItems> {
 
                     // if submitting the completed shopping list
                     if (_finishedShopping) {
-                      submitted = true;
                       /* increment _groceryItemsFrequency for submitted items, measuring frequency.
                       iterate bools of finalShoppingList */
                       for (var i = 0; i < finalShoppingList.length; i++) {
