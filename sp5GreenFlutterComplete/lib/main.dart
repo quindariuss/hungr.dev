@@ -40,6 +40,9 @@ var userID = "";
 var joinedGroup = "No Group Joined";
 var joinableGroup = "";
 
+var submitted = false;
+var activateTimer = true;
+
 // make API calls every few seconds to update certain screens
 Timer? timer; // ? makes this nullable, so we don't have to initialize it
 
@@ -466,14 +469,14 @@ class _GroceryItemsState extends State<GroceryItems> {
 
           return StatefulBuilder (builder: (BuildContext context, StateSetter setState) {
 
-            /** This currently only works going forward, if _storeList pop()s back here the timer doesn't restart? **/
+            /** This currently only works going forward, if _storeList pop()s back here the timer doesn't restart?
+             UPDATE: UGLY workaround implemented where we just pop and re-push this screen, there has to be a better way ...**/
             // start a timer to make API calls if logged in and a group is joined
             if (loggedIn && joinedGroup != "No Group Joined" && userID != "") {
-              if (timer == null) {
+              if (timer == null && activateTimer) {
                 timer = Timer.periodic(Duration(seconds: 10), (Timer t) async {
-                  await _syncCheckedToServer();
+                  addedItems = await _syncCheckedToServer();
                   setState((){});
-                  print("bals");
                 });
               }
             }
@@ -749,9 +752,17 @@ class _GroceryItemsState extends State<GroceryItems> {
               });
         },
       ),
-    ).then((value) {
-      timer = null;
-      setState(() {}); /** This DOESN'T WORK: doesn't set the state [namely restarting the timer] on if pressing back to shared list?? **/
+    ).then((value) async {
+      /** This DOESN'T WORK: doesn't set the state [namely restarting the timer] on if pressing back to shared list??
+      UPDATE: UGLY workaround implemented where we just pop and re-push this screen, there has to be a better way ...**/
+
+      if (submitted) {
+        submitted = false;
+      } else {
+        var addedItems = await _syncCheckedToServer();
+        Navigator.of(context).pop();
+        _viewSharedList(addedItems);
+      }
     });
   }
 
@@ -1448,7 +1459,6 @@ class _GroceryItemsState extends State<GroceryItems> {
 
                     // if submitting the completed shopping list
                     if (_finishedShopping) {
-                      timer = null;
                       /* increment _groceryItemsFrequency for submitted items, measuring frequency.
                       iterate bools of finalShoppingList */
                       for (var i = 0; i < finalShoppingList.length; i++) {
@@ -1477,6 +1487,8 @@ class _GroceryItemsState extends State<GroceryItems> {
                       if (loggedIn && joinedGroup != "No Group Joined" && userID != "") {
                         await _submitAPI(finalShoppingList);
                       }
+
+                      submitted = true;
 
                       /* return to the home screen by pushing. could change GroceryItems() to MyApp() also.
                       Not really sure why we need both of these commands, but with only one, it doesn't work? */
