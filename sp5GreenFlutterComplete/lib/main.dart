@@ -1,3 +1,6 @@
+/** Obscure bug I can fix: if a user is idling on screen 2 and another user purchases items,
+ their items in _checked will be re-added back to the DB **/
+
 import 'package:flutter/material.dart';
 // for Dart API calls
 import 'package:http/http.dart' as http; // use API calls (GET...)
