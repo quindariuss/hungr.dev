@@ -1,10 +1,10 @@
 /** Things to do:
- * PUSH NOTIFICATIONS
+ * SECURITY: Logging In, AND hiding our server key for the push notifications
+ * iOS PUSH NOTIFICATIONS: Android is Done
  * Ads
  * Stop user from double tapping buttons **/
 
 import 'package:flutter/material.dart';
-// for Dart API calls
 import 'package:http/http.dart' as http; // use API calls (GET...)
 import 'dart:convert'; // convert GET result to JSON/List
 // for local file storage
@@ -13,6 +13,10 @@ import 'dart:io'; // to use Directory, File...
 import 'dart:math'; // for random number for joining a group
 import 'package:flutter/services.dart'; // to be able to copy to clipboard
 import 'dart:async'; // to user Timers
+// imports for firebase / push notification stuff
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 
 // global variable for initial food list for all new users.
 final _groceryItems = ['Eggs', 'Milk', 'Fish Sauce', 'Bread', 'Apple Juice', 'Coke', 'Potato Chips',
@@ -26,8 +30,9 @@ final _groceryItemsFrequency = [];
   can also be used to keep old removed items, and add them back */
 var _groceryItemsCopy = [];
 
-// holds all of the checked items in a set, so they can't be duplicated
+// holds all items that were added by pressing "add to shared list," and used through any following logic
 final _checked = <String>{};
+// holds the checked items for the first page view, then is cleared
 final _decoupledChecked = <String>{};
 
 // stores _checked + other items in the groceryList group (other user's in the groups' _checked items)
@@ -52,9 +57,37 @@ var submitted = false;
 // make API calls every few seconds to update shared list screen
 Timer? timer; // ? makes this nullable, so we don't have to initialize it
 
+// FIREBASE VARS
+FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
+
+// gets push notifications when app is in background/terminated?
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // If you're going to use other Firebase services in the background, such as Firestore,
+  // make sure you call `initializeApp` before using other Firebase services.
+  //await Firebase.initializeApp(); // called this in main() befgore this, so I don't think we need to here?
+  //("Handling a background message: ${message.messageId}");
+}
+
 // make main() async for Futures
 Future<void> main() async {
+
+  // firebase background/terminated stuff
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
+  // for background and terminated(?) push notification reception
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+  // for foreground notification?
+  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    // you can receive data and do things with it here
+  });
+
+  // POSSIBLE WAY OF AUTHENTICATION
+  //_firebaseMessaging.getToken().then((token) {
+    //print("GOT TOKEN");
+    //print(token);
+  //});
 
   // get the phone's path to where it saves files for this app
   Directory appDocumentsDirectory = await getApplicationDocumentsDirectory();
@@ -88,6 +121,9 @@ Future<void> main() async {
 
   if ((File(filePath + "/joinedGroup.txt").existsSync())) {
     joinedGroup = await File(filePath + "/joinedGroup.txt").readAsString();
+    try {_firebaseMessaging.subscribeToTopic(joinedGroup);} catch (e) {}
+  } else {
+    try {_firebaseMessaging.unsubscribeFromTopic(joinedGroup);} catch (e) {}
   }
 
   if (File(filePath + "/groceryItems.json").existsSync() && File(filePath + "/groceryItemsCopy.json").existsSync()) {
@@ -215,7 +251,6 @@ class _GroceryItemsState extends State<GroceryItems> {
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.black),),
               onPressed: () async {
-
                 // clear _checked if the list has been submitted since the last time the user has added to the shared list
                 if (loggedIn && joinedGroup != "No Group Joined" && userID != "" && _checked.length > 0) {
                   // we want this to happen before we call _syncChecked... could make it a method
@@ -225,9 +260,22 @@ class _GroceryItemsState extends State<GroceryItems> {
                   var fileString = await File(filePath + "/purchases.txt").readAsString();
                   if (fileString != jsonResponse[0]['purchases'].toString()) {
                     _checked.clear();
+                    _checkedAllUsers.clear();
                   }
                   file.writeAsString(jsonResponse[0]['purchases'].toString());
                 }
+
+                /* push a notification to the group, if they're in one, and if adding new items to the list:
+                 that is, that there are still items in _decoupledPlaceHolder after removing everyhing in _checked/_checkedAllUsers */
+                if (loggedIn && joinedGroup != "No Group Joined " && userID != "" && _decoupledChecked.isNotEmpty) {
+                  var _decoupledPlaceHolder = _decoupledChecked.toList();
+                  _decoupledPlaceHolder.removeWhere((e) => _checked.contains(e));
+                  _decoupledPlaceHolder.removeWhere((e) => _checkedAllUsers.contains(e));
+                  if (_decoupledPlaceHolder.isNotEmpty) {
+                    pushNotification("New Grocery List Items Added");
+                  }
+                }
+
                 /* add all items to _checked from _decoupledChecked so the rest of the logic continues.
                    _decoupledChecked's logic ends here. */
                 _checked.addAll(_decoupledChecked);
@@ -326,13 +374,21 @@ class _GroceryItemsState extends State<GroceryItems> {
                   File file4 = File(filePath + "/checked.json");
                   file4.writeAsString("[]");
                 }
+                if ((File(filePath + "/purchases.txt").existsSync())) {
+                  File file = File(filePath + "/purchases.txt");
+                  file.deleteSync();
+                }
+                if (joinedGroup != "No Group Joined") {
+                  try {_firebaseMessaging.subscribeToTopic(joinedGroup);} catch (e) {}
+                }
                 userID = "";
                 loggedIn = false;
                 joinedGroup = "No Group Joined";
                 _checked.clear();
-                _groupFrequencySorted = false;
+                _checkedAllUsers.clear();
                 _decoupledChecked.clear();
                 if (_groupFrequencySorted) {
+                  _groupFrequencySorted = false;
                   File file5 = File(filePath + "/sorted.txt");
                   file5.writeAsString("");
                 }
@@ -984,6 +1040,7 @@ class _GroceryItemsState extends State<GroceryItems> {
           var _passwordsMatch = true;
           var _usernameTaken = false;
           var loggedInDisplay = false;
+          var shortUsername = false;
 
           /* we must return a StatefulBuilder if we want to update the state, else
           it seemingly doesn't update the view */
@@ -1038,8 +1095,12 @@ class _GroceryItemsState extends State<GroceryItems> {
                           visible: _usernameTaken,
                           child: SizedBox(
                             width: 250,
-                            height: 25,
-                            child: Text (
+                            height: shortUsername ? 35 : 25,
+                            child: shortUsername ? Text (
+                              'Username and Password Must be At Least 6 Characters',
+                              textAlign: TextAlign.left,
+                              style: const TextStyle(fontSize: 15),
+                            ) : Text (
                               'Username Already Taken',
                               textAlign: TextAlign.left,
                               style: const TextStyle(fontSize: 15),
@@ -1079,7 +1140,8 @@ class _GroceryItemsState extends State<GroceryItems> {
                             decoration: const InputDecoration(
                               border: OutlineInputBorder(),
                               labelText: 'Password',
-                              floatingLabelBehavior:FloatingLabelBehavior.auto,                            ),
+                              floatingLabelBehavior:FloatingLabelBehavior.auto,
+                            ),
                           ),
                         ),
 
@@ -1150,12 +1212,22 @@ class _GroceryItemsState extends State<GroceryItems> {
                               ),
                               onPressed: () async {
                                 setState((){
-                                  if (passwordController.text.trim().isNotEmpty && usernameController.text.trim().isNotEmpty) {
-                                    loggedInDisplay = true;
-                                  }
+                                  loggedInDisplay = true;
                                 });
                                 // check if the 2 passwords match, and attempt to signup if so
-                                if ((passwordController.text.trim() == passwordController2.text.trim()) && passwordController.text.trim().isNotEmpty && usernameController.text.trim().isNotEmpty) {
+                                if (passwordController.text.trim() != passwordController2.text.trim()) {
+                                  setState(() {
+                                    _passwordsMatch = false;
+                                    _usernameTaken = false;
+                                    loggedInDisplay = false;
+                                    shortUsername = false;
+                                  });
+                                } else if (usernameController.text.trim().length < 6 || passwordController.text.trim().length < 6) {
+                                  shortUsername = true;
+                                  _usernameTaken = true;
+                                  _passwordsMatch = true;
+                                  loggedInDisplay = false;
+                                } else if (((passwordController.text.trim() == passwordController2.text.trim()) && passwordController.text.trim().isNotEmpty)) {
                                   var response = await http.post(Uri.parse('https://api.hungr.dev/signup?username=' +
                                       usernameController.text.trim() + '&password=' + passwordController.text.trim()));
                                   // for the time being just automatically log the user in
@@ -1186,13 +1258,15 @@ class _GroceryItemsState extends State<GroceryItems> {
                                       _usernameTaken = true;
                                       _passwordsMatch = true;
                                       loggedInDisplay = false;
+                                      shortUsername = false;
                                     });
                                   }
-                                } else if (passwordController.text.trim() != passwordController2.text.trim()) {
+                                } else {
                                   setState(() {
-                                    _passwordsMatch = false;
                                     _usernameTaken = false;
+                                    _passwordsMatch = true;
                                     loggedInDisplay = false;
+                                    shortUsername = false;
                                   });
                                 }
                               },
@@ -1313,9 +1387,6 @@ class _GroceryItemsState extends State<GroceryItems> {
                         Row (
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: <Widget> [
-
-
-                            //
                             ElevatedButton(
                               child: const Icon(Icons.content_copy),
                               onPressed: () {
@@ -1384,7 +1455,10 @@ class _GroceryItemsState extends State<GroceryItems> {
                                 style: TextStyle(fontSize: 24),
                               ),
                               onPressed: () async {
-                                joinedGroup = controller.text.trim();
+                                if (RegExp(r'^[a-zA-Z0-9]+$').hasMatch(controller.text.replaceAll(' ', ''))) {
+                                try {_firebaseMessaging.unsubscribeFromTopic(joinedGroup);} catch(e) {}
+                                var joinedGroupCopy = joinedGroup;
+                                joinedGroup = controller.text.replaceAll(' ', '');
                                 setState(() {
                                   controller.clear();
                                 });
@@ -1397,19 +1471,16 @@ class _GroceryItemsState extends State<GroceryItems> {
                                   file.writeAsString(joinedGroup);
                                   File file2 = File(filePath + "/purchases.txt");
                                   file2.writeAsString(jsonResponse[0]['purchases'].toString());
+                                  try {_firebaseMessaging.subscribeToTopic(joinedGroup);} catch (e) {}
                                   // if there's some error and the group doesn't added AND doesn't exist? Ex API failure
                                 } else {
-                                  if ((File(filePath + "/joinedGroup.txt").existsSync())) {
-                                    File file = File(filePath + "/joinedGroup.txt");
-                                    file.deleteSync();
-                                  }
-                                  if ((File(filePath + "/purchases.txt").existsSync())) {
-                                    File file = File(filePath + "/purchases.txt");
-                                    file.deleteSync();
-                                  }
-                                  setState(() {
-                                    joinedGroup = "No Group Joined";
-                                  });
+                                    setState(() {
+                                    joinedGroup = joinedGroupCopy;
+                                    });
+                                    if (joinedGroup != "No Group Joined") {
+                                      try {_firebaseMessaging.subscribeToTopic(joinedGroup);} catch (e) {}
+                                    }
+                                }
                                 }
                               },
                             )
@@ -1436,6 +1507,12 @@ class _GroceryItemsState extends State<GroceryItems> {
                                   File file = File(filePath + "/joinedGroup.txt");
                                   file.deleteSync();
                                 }
+                                if ((File(filePath + "/purchases.txt").existsSync())) {
+                                  File file = File(filePath + "/purchases.txt");
+                                  file.deleteSync();
+                                }
+                                try { _firebaseMessaging.unsubscribeFromTopic(joinedGroup); }
+                                catch (e) {};
                                 setState(() {
                                   joinedGroup = "No Group Joined";
                                 });
@@ -1892,7 +1969,6 @@ class _GroceryItemsState extends State<GroceryItems> {
     // patch all items in the list's visibility to 0 and increment the item ID matching those in purchasedItems
     var patchString = '';
     var patchFrequencies = '';
-    var frequencies = '';
     for (var i = 0; i < jsonResponse.length; i++) {
       // add all items to patchString to set visibility=0
       if (patchString != '') {
@@ -1977,6 +2053,32 @@ class _GroceryItemsState extends State<GroceryItems> {
 
     // save the list again
     _saveLocalList();
+  }
+
+  // pushes notifications to everyone in the same group
+  Future<bool> pushNotification(String title) async {
+    try {
+
+      var url = Uri.parse('https://fcm.googleapis.com/fcm/send');
+      var header = {
+        "Content-Type": "application/json",
+        "Authorization":
+
+        /** our server API key to send push notifications: need to hide this, instead of hard-coding it **/
+        "key=AAAAuQkjNLQ:APA91bFt60NPmkdCRhHj_fWVVgtZcM8GlthHt-sCVqU_5AklKvw7syP7F3Z8osE2Ub9KFIbATCLW8h_8yIdwpzV7im3MFpTsxw63yJ0Sy2cM1NdVf2cfNyJamdTTv9zsQNkkMOEyN-vq",
+      };
+      var request = {
+        "notification": {
+          "title": title,
+          "body": "$userID has added items to your group's grocery list.",
+        },
+        "priority": "high",
+        "to": "/topics/$joinedGroup", // everyone who joins a group also subscribes to the topic
+      };
+
+      await http.Client().post(url, headers: header, body: json.encode(request));
+      return true;
+    } catch (e, s) {return false;}
   }
 
 }
