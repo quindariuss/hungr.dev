@@ -379,7 +379,7 @@ class _GroceryItemsState extends State<GroceryItems> {
                   file.deleteSync();
                 }
                 if (joinedGroup != "No Group Joined") {
-                  try {_firebaseMessaging.subscribeToTopic(joinedGroup);} catch (e) {}
+                  try {_firebaseMessaging.unsubscribeFromTopic(joinedGroup);} catch (e) {}
                 }
                 userID = "";
                 loggedIn = false;
@@ -1261,13 +1261,6 @@ class _GroceryItemsState extends State<GroceryItems> {
                                       shortUsername = false;
                                     });
                                   }
-                                } else {
-                                  setState(() {
-                                    _usernameTaken = false;
-                                    _passwordsMatch = true;
-                                    loggedInDisplay = false;
-                                    shortUsername = false;
-                                  });
                                 }
                               },
                             )
@@ -1456,7 +1449,6 @@ class _GroceryItemsState extends State<GroceryItems> {
                               ),
                               onPressed: () async {
                                 if (RegExp(r'^[a-zA-Z0-9]+$').hasMatch(controller.text.replaceAll(' ', ''))) {
-                                try {_firebaseMessaging.unsubscribeFromTopic(joinedGroup);} catch(e) {}
                                 var joinedGroupCopy = joinedGroup;
                                 joinedGroup = controller.text.replaceAll(' ', '');
                                 setState(() {
@@ -1465,21 +1457,20 @@ class _GroceryItemsState extends State<GroceryItems> {
                                 var response = await http.post(Uri.parse('https://api.hungr.dev/groceryList?name=$joinedGroup'));
                                 // in case they're joining an already existing group
                                 if (response.body == 'success' || response.body == 'Group Already Added') {
+                                  try {_firebaseMessaging.unsubscribeFromTopic(joinedGroupCopy);} catch(e) {}
                                   response = await http.get(Uri.parse('https://api.hungr.dev/groceryList?name=$joinedGroup'));
                                   var jsonResponse = jsonDecode(response.body);
                                   File file = File(filePath + "/joinedGroup.txt");
                                   file.writeAsString(joinedGroup);
                                   File file2 = File(filePath + "/purchases.txt");
                                   file2.writeAsString(jsonResponse[0]['purchases'].toString());
+                                  _checkedAllUsers.clear();
                                   try {_firebaseMessaging.subscribeToTopic(joinedGroup);} catch (e) {}
                                   // if there's some error and the group doesn't added AND doesn't exist? Ex API failure
                                 } else {
                                     setState(() {
                                     joinedGroup = joinedGroupCopy;
                                     });
-                                    if (joinedGroup != "No Group Joined") {
-                                      try {_firebaseMessaging.subscribeToTopic(joinedGroup);} catch (e) {}
-                                    }
                                 }
                                 }
                               },
@@ -1511,8 +1502,8 @@ class _GroceryItemsState extends State<GroceryItems> {
                                   File file = File(filePath + "/purchases.txt");
                                   file.deleteSync();
                                 }
-                                try { _firebaseMessaging.unsubscribeFromTopic(joinedGroup); }
-                                catch (e) {};
+                                _checkedAllUsers.clear();
+                                try { _firebaseMessaging.unsubscribeFromTopic(joinedGroup); } catch (e) {};
                                 setState(() {
                                   joinedGroup = "No Group Joined";
                                 });
