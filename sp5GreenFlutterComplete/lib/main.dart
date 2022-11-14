@@ -1,5 +1,5 @@
 /** Things to do:
- * SECURITY: Logging In, AND hiding our server key for the push notifications
+ * SECURITY: Logging In
  * iOS PUSH NOTIFICATIONS: Android is Done
  * Ads
  * Stop user from double tapping buttons **/
@@ -64,8 +64,8 @@ FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // If you're going to use other Firebase services in the background, such as Firestore,
   // make sure you call `initializeApp` before using other Firebase services.
-  //await Firebase.initializeApp(); // called this in main() befgore this, so I don't think we need to here?
-  //("Handling a background message: ${message.messageId}");
+  // await Firebase.initializeApp(); // called this in main() before this, so I don't think we need to here?
+  // ("Handling a background message: ${message.messageId}");
 }
 
 // make main() async for Futures
@@ -182,6 +182,10 @@ Future<void> main() async {
       var fileString = await File(filePath + "/purchases.txt").readAsString();
       if (fileString != jsonResponse[0]['purchases'].toString()) {
         _checked.clear();
+        if (File(filePath + "/checked.json").existsSync()) {
+          File file2 = File(filePath + "/checked.json");
+          file2.deleteSync();
+        }
       }
       file.writeAsString(jsonResponse[0]['purchases'].toString());
     }
@@ -266,7 +270,7 @@ class _GroceryItemsState extends State<GroceryItems> {
                 }
 
                 /* push a notification to the group, if they're in one, and if adding new items to the list:
-                 that is, that there are still items in _decoupledPlaceHolder after removing everyhing in _checked/_checkedAllUsers */
+                 that is, that there are still items in _decoupledPlaceHolder after removing everything in _checked/_checkedAllUsers */
                 if (loggedIn && joinedGroup != "No Group Joined " && userID != "" && _decoupledChecked.isNotEmpty) {
                   var _decoupledPlaceHolder = _decoupledChecked.toList();
                   _decoupledPlaceHolder.removeWhere((e) => _checked.contains(e));
@@ -370,7 +374,7 @@ class _GroceryItemsState extends State<GroceryItems> {
                   File file3 = File(filePath + "/joinedGroup.txt");
                   file3.deleteSync();
                 }
-                if ((File(filePath + "/checked.txt").existsSync())) {
+                if ((File(filePath + "/checked.json").existsSync())) {
                   File file4 = File(filePath + "/checked.json");
                   file4.writeAsString("[]");
                 }
@@ -532,7 +536,8 @@ class _GroceryItemsState extends State<GroceryItems> {
               if (!loggedIn) {
                 _makeAccountOrLogin();
               } else {
-                _joinGroup();
+                // push on the new screen
+                Navigator.of(context).push(_joinGroup()).then((value) => setState((){}));
               }
             },
             label: const Text('Join a Group'),
@@ -602,10 +607,7 @@ class _GroceryItemsState extends State<GroceryItems> {
               await _syncCheckedToServer(false);
             };
             setState((){});
-
-            _saveLocalList(); // update the locally saved list
-        // disable swipe left, for now
-        }
+          }
         },
 
           // make a list tile with the text of checkedItems (the item iterable from _checkedAllUsers)
@@ -1278,12 +1280,10 @@ class _GroceryItemsState extends State<GroceryItems> {
 
   /* if loggedIn, pushes the join a group screen (7th) on to the stack, after pressing
   the join a group button */
-  void _joinGroup() {
-
-    Navigator.of(context).push( // push on the new screen
+  MaterialPageRoute<void> _joinGroup() {
 
       // create the new page / screen
-      MaterialPageRoute<void>(
+      return MaterialPageRoute<void>(
 
         /* builder builds the scaffold with the app bar and the body with the list view rows
         builder is required for MaterialPageRoute */
@@ -1465,6 +1465,15 @@ class _GroceryItemsState extends State<GroceryItems> {
                                   File file2 = File(filePath + "/purchases.txt");
                                   file2.writeAsString(jsonResponse[0]['purchases'].toString());
                                   _checkedAllUsers.clear();
+                                  _checked.clear();
+                                  response = await http.get(Uri.parse('https://api.hungr.dev/items?groceryList=$joinedGroup'));
+                                  jsonResponse = jsonDecode(response.body);
+                                  for (var i = 0; i < jsonResponse.length; i++) {
+                                    if (jsonResponse[i]['username'] == userID && jsonResponse[i]['visible'] == 1) {
+                                      _checked.add(jsonResponse[i]['name']);
+                                    }
+                                  }
+                                  _saveLocalList();
                                   try {_firebaseMessaging.subscribeToTopic(joinedGroup);} catch (e) {}
                                   // if there's some error and the group doesn't added AND doesn't exist? Ex API failure
                                 } else {
@@ -1482,7 +1491,7 @@ class _GroceryItemsState extends State<GroceryItems> {
                           height:10,
                         ),
 
-                        // join group button
+                        // leave group button
                         SizedBox(
                             width: 250,
                             height: 55,
@@ -1502,7 +1511,13 @@ class _GroceryItemsState extends State<GroceryItems> {
                                   File file = File(filePath + "/purchases.txt");
                                   file.deleteSync();
                                 }
-                                _checkedAllUsers.clear();
+                                if (File(filePath + "/checked.json").existsSync()) {
+                                  File file = File(filePath + "/checked.json");
+                                  file.deleteSync();
+                                }
+                                 _checkedAllUsers.clear();
+                                _checked.clear();
+
                                 try { _firebaseMessaging.unsubscribeFromTopic(joinedGroup); } catch (e) {};
                                 setState(() {
                                   joinedGroup = "No Group Joined";
@@ -1518,7 +1533,6 @@ class _GroceryItemsState extends State<GroceryItems> {
                 );
               });
         },
-      ),
     );
   }
 
@@ -1830,6 +1844,10 @@ class _GroceryItemsState extends State<GroceryItems> {
       var fileString = await File(filePath + "/purchases.txt").readAsString();
       if (fileString != jsonResponse2[0]['purchases'].toString()) {
         _checked.clear();
+        if (File(filePath + "/checked.json").existsSync()) {
+          File file2 = File(filePath + "/checked.json");
+          file2.deleteSync();
+        }
         _checkedCopy.clear();
       }
       file.writeAsString(jsonResponse2[0]['purchases'].toString());
@@ -1887,7 +1905,6 @@ class _GroceryItemsState extends State<GroceryItems> {
     if (patchString != '') {
       await http.patch(Uri.parse('https://api.hungr.dev/items?visible=1&username=$userID&id=$patchString'));
     }
-
 
     // add items not already in DB that are checked to the DB: create String for URL
     var checkedString = '';
@@ -2054,8 +2071,6 @@ class _GroceryItemsState extends State<GroceryItems> {
       var header = {
         "Content-Type": "application/json",
         "Authorization":
-
-        /** our server API key to send push notifications: need to hide this, instead of hard-coding it **/
         "key=AAAAuQkjNLQ:APA91bFt60NPmkdCRhHj_fWVVgtZcM8GlthHt-sCVqU_5AklKvw7syP7F3Z8osE2Ub9KFIbATCLW8h_8yIdwpzV7im3MFpTsxw63yJ0Sy2cM1NdVf2cfNyJamdTTv9zsQNkkMOEyN-vq",
       };
       var request = {
