@@ -19,15 +19,29 @@ struct GroceryListView: View {
                     GroceryListItemsView(list: $list)
                 }
             }
+            .onDelete(perform: { index in
+                Task {
+                    await Network
+                        .shared
+                        .deleteList(
+                            name: lists[index.first!]
+                                .name
+                        )
+                }
+            })
         }
         .task {
-            let gatheredList = await Network.shared.getList()
+            let gatheredList = await Network
+                .shared
+                .getList()
             if gatheredList != [] {
                 lists = gatheredList
             }
         }
         .refreshable {
-            let gatheredList = await Network.shared.getList()
+            let gatheredList = await Network
+                .shared
+                .getList()
             if gatheredList != [] {
                 lists = gatheredList
             }
