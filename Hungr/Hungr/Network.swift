@@ -11,6 +11,22 @@ class Network {
     static let shared = Network()
     let decoder = JSONDecoder()
     
+    func deleteList(name: String) async {
+        do {
+            var components = URLComponents(url: URL.listURL, resolvingAgainstBaseURL: false)!
+            components.queryItems = [
+                URLQueryItem(name: "id", value: name)
+            ]
+            
+            var request = URLRequest(url: components.url!)
+            request.httpMethod = "DELETE"
+            
+            let (data, response) = try await URLSession.shared.data(for: request)
+            print(String(data: data, encoding: .utf8), response)
+        } catch {
+            print(error)
+        }
+    }
     
     func deleteItem(id: Int) async {
         do {
@@ -70,7 +86,7 @@ class Network {
     }
     func getItems(groceryList: GroceryList) async -> [GroceryListItem] {
         do {
-           var components = URLComponents(url: URL.itemsURL, resolvingAgainstBaseURL: false)
+            var components = URLComponents(url: URL.itemsURL, resolvingAgainstBaseURL: false)
             components?.queryItems = [
                 URLQueryItem(name: "groceryList", value: groceryList.name)
             ]
@@ -82,7 +98,7 @@ class Network {
             let jsonData = try decoder.decode([GroceryListItem].self, from: data)
             return jsonData
         } catch {
-           print(error)
+            print(error)
             return [GroceryListItem]()
         }
     }
