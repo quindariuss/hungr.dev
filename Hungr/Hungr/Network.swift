@@ -15,7 +15,7 @@ class Network {
         do {
             var components = URLComponents(url: URL.listURL, resolvingAgainstBaseURL: false)!
             components.queryItems = [
-                URLQueryItem(name: "id", value: name)
+                URLQueryItem(name: "name", value: name)
             ]
             
             var request = URLRequest(url: components.url!)

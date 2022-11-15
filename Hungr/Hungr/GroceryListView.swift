@@ -20,12 +20,12 @@ struct GroceryListView: View {
                 }
             }
             .onDelete(perform: { index in
+                print(index.first)
                 Task {
                     await Network
                         .shared
                         .deleteList(
-                            name: lists[index.first!]
-                                .name
+                            name: lists[index.first!].name
                         )
                 }
             })
