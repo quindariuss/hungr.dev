@@ -11,6 +11,7 @@ struct GroceryListItemsView: View {
     @Binding var list: GroceryList
     @State var items = [GroceryListItem]()
     @State var newItem = ""
+    @State var searchTerm = ""
     var body: some View {
         List {
             HStack {

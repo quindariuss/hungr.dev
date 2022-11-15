@@ -11,6 +11,7 @@ class Network {
     static let shared = Network()
     let decoder = JSONDecoder()
     
+    
     func deleteItem(id: Int) async {
         do {
             var components = URLComponents(url: URL.itemsURL, resolvingAgainstBaseURL: false)!
