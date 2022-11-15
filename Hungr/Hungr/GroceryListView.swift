@@ -11,13 +11,7 @@ struct GroceryListView: View {
     @State var lists = [GroceryList]()
     @State var search = ""
     @State var searchingList = [GroceryList]()
-    var filteredList: [GroceryList] {
-        if search.isEmpty {
-            return lists
-        } else {
-            return lists.filter { $0.name.localizedCaseInsensitiveContains(search) }
-        }
-    }
+    
     var body: some View {
         List {
             ForEach($lists) { $list in
@@ -32,23 +26,12 @@ struct GroceryListView: View {
                 lists = gatheredList
             }
         }
-        .searchable(text: $search) {
-            ForEach($searchingList) { $list in
-
-                NavigationLink(list.name) {
-                    GroceryListItemsView(list: $list)
-                }
+        .refreshable {
+            let gatheredList = await Network.shared.getList()
+            if gatheredList != [] {
+                lists = gatheredList
             }
         }
-        .onChange(of: search) { newValue in
-            
-            searchingList = lists.filter({ GroceryList in
-                if newValue.isEmpty {
-                    return true
-                }
-                return GroceryList.name.contains(newValue)
-            })
-            }
     }
 }
 
