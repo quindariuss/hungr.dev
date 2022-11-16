@@ -398,42 +398,46 @@ class _GroceryItemsState extends State<GroceryItems> {
                 });
               } else if (selectedValue == 7) { // log out
                 // delete local save files and reset variables
-                if ((File("$filePath/userID.txt").existsSync())) {
-                  File file = File("$filePath/userID.txt");
-                  file.deleteSync();
+                if (loggedIn) {
+                  if ((File("$filePath/userID.txt").existsSync())) {
+                    File file = File("$filePath/userID.txt");
+                    file.deleteSync();
+                  }
+                  if ((File(filePath + "/loggedIn.txt").existsSync())) {
+                    File file2 = File(filePath + "/loggedIn.txt");
+                    file2.deleteSync();
+                  }
+                  if ((File("$filePath/joinedGroup.txt").existsSync())) {
+                    File file3 = File("$filePath/joinedGroup.txt");
+                    file3.deleteSync();
+                  }
+                  if ((File("$filePath/checked.json").existsSync())) {
+                    File file4 = File("$filePath/checked.json");
+                    file4.writeAsString("[]");
+                  }
+                  if ((File("$filePath/purchases.txt").existsSync())) {
+                    File file = File("$filePath/purchases.txt");
+                    file.deleteSync();
+                  }
+                  if (joinedGroup != "No Group Joined") {
+                    try {
+                      _firebaseMessaging.unsubscribeFromTopic(joinedGroup);
+                    } catch (e) {}
+                  }
+                  userID = "";
+                  loggedIn = false;
+                  joinedGroup = "No Group Joined";
+                  _checked.clear();
+                  _checkedAllUsers.clear();
+                  _decoupledChecked.clear();
+                  if (_groupFrequencySorted) {
+                    _groupFrequencySorted = false;
+                    File file5 = File("$filePath/sorted.txt");
+                    file5.writeAsString("");
+                  }
+                  await FirebaseAuth.instance.signOut();
+                  setState(() {});
                 }
-                if ((File(filePath + "/loggedIn.txt").existsSync())) {
-                  File file2 = File(filePath + "/loggedIn.txt");
-                  file2.deleteSync();
-                }
-                if ((File("$filePath/joinedGroup.txt").existsSync())) {
-                  File file3 = File("$filePath/joinedGroup.txt");
-                  file3.deleteSync();
-                }
-                if ((File("$filePath/checked.json").existsSync())) {
-                  File file4 = File("$filePath/checked.json");
-                  file4.writeAsString("[]");
-                }
-                if ((File("$filePath/purchases.txt").existsSync())) {
-                  File file = File("$filePath/purchases.txt");
-                  file.deleteSync();
-                }
-                if (joinedGroup != "No Group Joined") {
-                  try {_firebaseMessaging.unsubscribeFromTopic(joinedGroup);} catch (e) {}
-                }
-                userID = "";
-                loggedIn = false;
-                joinedGroup = "No Group Joined";
-                _checked.clear();
-                _checkedAllUsers.clear();
-                _decoupledChecked.clear();
-                if (_groupFrequencySorted) {
-                  _groupFrequencySorted = false;
-                  File file5 = File("$filePath/sorted.txt");
-                  file5.writeAsString("");
-                }
-                await FirebaseAuth.instance.signOut();
-                setState((){});
               }
             },
             // lambda expression => creates and populates popupmenu entries with child's
@@ -1604,6 +1608,7 @@ class _GroceryItemsState extends State<GroceryItems> {
                                   file2.writeAsString(jsonResponse[0]['purchases'].toString());
                                   _checkedAllUsers.clear();
                                   _checked.clear();
+                                  _decoupledChecked.clear();
                                   response = await http.get(Uri.parse('https://api.hungr.dev/items?groceryList=$joinedGroup'));
                                   jsonResponse = jsonDecode(response.body);
                                   for (var i = 0; i < jsonResponse.length; i++) {
@@ -1616,7 +1621,7 @@ class _GroceryItemsState extends State<GroceryItems> {
                                   // if there's some error and the group doesn't added AND doesn't exist? Ex API failure
                                 } else {
                                     setState(() {
-                                    joinedGroup = joinedGroupCopy;
+                                      joinedGroup = joinedGroupCopy;
                                     });
                                 }
                                 }
@@ -1655,6 +1660,12 @@ class _GroceryItemsState extends State<GroceryItems> {
                                 }
                                  _checkedAllUsers.clear();
                                 _checked.clear();
+                                _decoupledChecked.clear();
+                                if (_groupFrequencySorted) {
+                                  _groupFrequencySorted = false;
+                                  File file5 = File("$filePath/sorted.txt");
+                                  file5.writeAsString("");
+                                }
 
                                 try { _firebaseMessaging.unsubscribeFromTopic(joinedGroup); } catch (e) {};
                                 setState(() {
