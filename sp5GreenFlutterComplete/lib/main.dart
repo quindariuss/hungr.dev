@@ -12,11 +12,13 @@ import 'dart:io'; // to use Directory, File...
 import 'dart:math'; // for random number for joining a group
 import 'package:flutter/services.dart'; // to be able to copy to clipboard
 import 'dart:async'; // to user Timers
-// imports for firebase / push notification stuff
+import 'package:flutter/rendering.dart'; // for scroll notification to hide action buttons
+// imports for firebase / auth / push notification stuff
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
 
 // global variable for initial food list for all new users.
 final _groceryItems = ['Eggs', 'Milk', 'Fish Sauce', 'Bread', 'Apple Juice', 'Coke', 'Potato Chips',
@@ -91,7 +93,7 @@ Future<void> main() async {
 
   // check if the user is logged in from local storage, and update vars
   if ((File(filePath + "/loggedIn.txt").existsSync())) {
-    var loggedInResponse = await File(filePath + "/loggedIn.txt").readAsString();
+    var loggedInResponse = await File("$filePath/loggedIn.txt").readAsString();
     if (loggedInResponse == "true") {
       loggedIn = true;
     }
@@ -128,6 +130,7 @@ Future<void> main() async {
           try {_firebaseMessaging.unsubscribeFromTopic(joinedGroup);} catch (e) {}
         }
         userID = "";
+        loggedIn = false;
         joinedGroup = "No Group Joined";
         _checked.clear();
         if (_groupFrequencySorted) {
@@ -208,8 +211,7 @@ Future<void> main() async {
     }
 
     if (loggedIn && joinedGroup != "No Group Joined" && userID != "" && _checked.length > 0) {
-      var response = await http.get(
-          Uri.parse('https://api.hungr.dev/groceryList?name=$joinedGroup'));
+      var response = await http.get(Uri.parse('https://api.hungr.dev/groceryList?name=$joinedGroup'));
       var jsonResponse = jsonDecode(response.body);
       File file = File(filePath + "/purchases.txt");
       var fileString = await File(filePath + "/purchases.txt").readAsString();
@@ -264,6 +266,8 @@ class _GroceryItemsState extends State<GroceryItems> {
 
   // used for the finished shopping pop-up box
   var _finishedShopping = false;
+
+  var fabVisibility = true;
 
   // home screen (1st) definition
   @override
@@ -472,7 +476,20 @@ class _GroceryItemsState extends State<GroceryItems> {
       ),
 
       // scaffold pt 2: List View
-      body: ListView.builder(
+      body: NotificationListener<UserScrollNotification>(
+        onNotification: (notification) {
+          final ScrollDirection direction = notification.direction;
+          setState(() {
+            if (direction == ScrollDirection.reverse) {
+              fabVisibility = false;
+            } else if (direction == ScrollDirection.forward) {
+              fabVisibility = true;
+            }
+          });
+          return true;
+        },
+        child: ListView.builder(
+
         itemCount: _groceryItems.length * 2, /* Set the list size.
                             * 2 for the divider after every item */
         //padding: const EdgeInsets.all(16.0),
@@ -540,9 +557,10 @@ class _GroceryItemsState extends State<GroceryItems> {
           );
         },
       ),
+      ),
 
       // scaffold pt 3: floating buttons
-      floatingActionButton: Row(
+      floatingActionButton: Visibility(visible: fabVisibility, child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
 
         children: <Widget> [
@@ -576,6 +594,7 @@ class _GroceryItemsState extends State<GroceryItems> {
             label: const Text('Join a Group'),
           ),
         ],
+      ),
       ),
 
     );
@@ -901,6 +920,8 @@ class _GroceryItemsState extends State<GroceryItems> {
 
           var loggedInDisplay = false;
           var _isVisible = false;
+          var pressed = false;
+          var text = "";
 
           /* we must return a StatefulBuilder if we want to update the state, else
           it seemingly doesn't update the view */
@@ -926,7 +947,7 @@ class _GroceryItemsState extends State<GroceryItems> {
                           width: 250,
                           height: 25,
                           child: Text (
-                            'Enter Username:',
+                            'Enter Email Address:',
                             textAlign: TextAlign.left,
                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
                           ),
@@ -985,20 +1006,53 @@ class _GroceryItemsState extends State<GroceryItems> {
                           height:10,
                         ),
 
+
                         // text box to enter password
                         SizedBox(
-                          width: 250,
-                          height: 75,
-                          child: TextField(
-                            obscureText: true,
-                            //obscuringCharacter: '*', the default DOT looks more modern
-                            controller: passwordController,
-                            decoration: const InputDecoration(
-                              border: OutlineInputBorder(),
-                              labelText: 'Password',
-                              floatingLabelBehavior:FloatingLabelBehavior.auto,                            ),
-                          ),
-                        ),
+                                width: 250,
+                                height: 60,
+                                child: TextField(
+                                  obscureText: true,
+                                  //obscuringCharacter: '*', the default DOT looks more modern
+                                  controller: passwordController,
+                                  decoration: const InputDecoration(
+                                    border: OutlineInputBorder(),
+                                    labelText: 'Password',
+                                    floatingLabelBehavior:FloatingLabelBehavior.auto,                            ),
+                                ),
+                              ),
+
+                              SizedBox(
+                                width: 250,
+                                child: TextButton(
+                                  child: Align(
+                                    alignment: pressed ? Alignment.bottomLeft
+                                    : Alignment.bottomRight,
+                                    child: pressed ?
+                                    Text(
+                                      text,
+                                    ) :
+                                    Text(
+                                    "Forgot Password?",
+                                  ),
+                                  ),
+                                  onPressed: () async {
+                                    if (usernameController.text.trim().isNotEmpty) {
+
+                                      await FirebaseAuth.instance.sendPasswordResetEmail(email: usernameController.text.trim());
+                                      setState((){
+                                        pressed = true;
+                                        text = "Please check your spam folder, an email has been sent to " + usernameController.text.trim();
+                                      });
+                                    } else {
+                                      setState(() {
+                                        pressed = true;
+                                        text = "Please enter an email address.";
+                                      });
+                                    }
+                                  },
+                                ),
+                              ),
 
                         // spacer
                         const SizedBox(
@@ -1018,6 +1072,7 @@ class _GroceryItemsState extends State<GroceryItems> {
                               onPressed: () async {
                                 // set loggedIn bool based on provided credentials
                                 setState(() {
+                                  pressed = false;
                                   loggedInDisplay = true;
                                 });
                                 if (usernameController.text.trim().isNotEmpty && passwordController.text.trim().isNotEmpty) {
@@ -1065,6 +1120,11 @@ class _GroceryItemsState extends State<GroceryItems> {
                                       });
                                     }
                                   }
+                                } else {
+                                  setState(() {
+                                    loggedInDisplay = false;
+                                    _isVisible = true;
+                                  });
                                 }
 
                               },
@@ -1126,7 +1186,7 @@ class _GroceryItemsState extends State<GroceryItems> {
                           width: 250,
                           height: 25,
                           child: Text (
-                            'Choose a Username:',
+                            'Email Address:',
                             textAlign: TextAlign.left,
                             style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20),
                           ),
