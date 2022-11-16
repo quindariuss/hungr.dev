@@ -1,5 +1,4 @@
 /** Things to do:
- * SECURITY: Logging In
  * iOS PUSH NOTIFICATIONS: Android is Done
  * Ads
  * Stop user from double tapping buttons **/
@@ -17,6 +16,7 @@ import 'dart:async'; // to user Timers
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 // global variable for initial food list for all new users.
 final _groceryItems = ['Eggs', 'Milk', 'Fish Sauce', 'Bread', 'Apple Juice', 'Coke', 'Potato Chips',
@@ -46,8 +46,8 @@ var _frequencySorted = false;
 var _groupFrequencySorted = false;
 
 // account variables
-var loggedIn = false;
 var userID = "";
+var loggedIn = false;
 var joinedGroup = "No Group Joined";
 var joinableGroup = "";
 
@@ -83,15 +83,10 @@ Future<void> main() async {
     // you can receive data and do things with it here
   });
 
-  // POSSIBLE WAY OF AUTHENTICATION
-  //_firebaseMessaging.getToken().then((token) {
-    //print("GOT TOKEN");
-    //print(token);
-  //});
-
   // get the phone's path to where it saves files for this app
   Directory appDocumentsDirectory = await getApplicationDocumentsDirectory();
   var appDocumentsPath = appDocumentsDirectory.path;
+  // convert to string
   filePath = "$appDocumentsPath";
 
   // check if the user is logged in from local storage, and update vars
@@ -103,36 +98,73 @@ Future<void> main() async {
   }
 
   // update userID if logged in
-  if ((File(filePath + "/userID.txt").existsSync()) && loggedIn) {
-    userID = await File(filePath + "/userID.txt").readAsString();
+  if ((File("$filePath/userID.txt").existsSync())) {
+    userID = await File("$filePath/userID.txt").readAsString();
+    // verify that the user is logged in or not
+    FirebaseAuth.instance.authStateChanges().listen((User? user) {
+      if (user == null) {
+        // delete local save files and reset variables
+        if ((File("$filePath/userID.txt").existsSync())) {
+          File file = File("$filePath/userID.txt");
+          file.deleteSync();
+        }
+        if ((File(filePath + "/loggedIn.txt").existsSync())) {
+          File file2 = File(filePath + "/loggedIn.txt");
+          file2.deleteSync();
+        }
+        if ((File("$filePath/joinedGroup.txt").existsSync())) {
+          File file3 = File("$filePath/joinedGroup.txt");
+          file3.deleteSync();
+        }
+        if ((File("$filePath/checked.json").existsSync())) {
+          File file4 = File("$filePath/checked.json");
+          file4.writeAsString("[]");
+        }
+        if ((File("$filePath/purchases.txt").existsSync())) {
+          File file = File("$filePath/purchases.txt");
+          file.deleteSync();
+        }
+        if (joinedGroup != "No Group Joined") {
+          try {_firebaseMessaging.unsubscribeFromTopic(joinedGroup);} catch (e) {}
+        }
+        userID = "";
+        joinedGroup = "No Group Joined";
+        _checked.clear();
+        if (_groupFrequencySorted) {
+          _groupFrequencySorted = false;
+          File file5 = File("$filePath/sorted.txt");
+          file5.writeAsString("");
+        }
+      }
+    });
   }
 
-  if (!(File(filePath + "/joinableGroup.txt").existsSync())) {
-    const _chars = 'AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890';
+  if (!(File("$filePath/joinableGroup.txt").existsSync())) {
+    const chars = 'AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz1234567890';
     // generate a random number from 20 - 100
     var randomNumber = Random.secure().nextInt(81) + 20;
     // generate a random string with randomNumber number of characters, and selecting a random character from _chars
-    joinableGroup = String.fromCharCodes(Iterable.generate(randomNumber, (_) => _chars.codeUnitAt(Random.secure().nextInt(_chars.length))));
-    File file = File(filePath + "/joinableGroup.txt");
+    joinableGroup = String.fromCharCodes(Iterable.generate(randomNumber, (_) => chars.codeUnitAt(Random.secure().nextInt(chars.length))));
+    File file = File("$filePath/joinableGroup.txt");
     file.writeAsString(joinableGroup);
   } else {
-    joinableGroup = await File(filePath + "/joinableGroup.txt").readAsString();
+    joinableGroup = await File("$filePath/joinableGroup.txt").readAsString();
   }
 
-  if ((File(filePath + "/joinedGroup.txt").existsSync())) {
-    joinedGroup = await File(filePath + "/joinedGroup.txt").readAsString();
+  if ((File("$filePath/joinedGroup.txt").existsSync())) {
+    joinedGroup = await File("$filePath/joinedGroup.txt").readAsString();
     try {_firebaseMessaging.subscribeToTopic(joinedGroup);} catch (e) {}
   } else {
     try {_firebaseMessaging.unsubscribeFromTopic(joinedGroup);} catch (e) {}
   }
 
-  if (File(filePath + "/groceryItems.json").existsSync() && File(filePath + "/groceryItemsCopy.json").existsSync()) {
+  if (File("$filePath/groceryItems.json").existsSync() && File("$filePath/groceryItemsCopy.json").existsSync()) {
 
     // clear hard-coded first-time-use items
     _groceryItems.clear();
 
     // convert the .json json and save in _groceryItems
-    var fileContent = await File(filePath + "/groceryItems.json").readAsString();
+    var fileContent = await File("$filePath/groceryItems.json").readAsString();
     var jsonLocalList = jsonDecode(fileContent);
     /* populate the initial array with localList's
     items (their names) from the API call */
@@ -140,7 +172,7 @@ Future<void> main() async {
       _groceryItems.add(jsonLocalList[i]['name']);
     }
 
-    var fileContentCopy = await File(filePath + "/groceryItemsCopy.json").readAsString();
+    var fileContentCopy = await File("$filePath/groceryItemsCopy.json").readAsString();
     var jsonLocalListCopy = jsonDecode(fileContentCopy);
     /* populate the copy array with localListCopy's
     items (their names) from the API call.
@@ -151,13 +183,13 @@ Future<void> main() async {
     }
 
     // if the user never sorted but edited the list...
-    if (!(File(filePath + "/sorted.txt").existsSync())) {
-      File file = File(filePath + "/sorted.txt");
+    if (!(File("$filePath/sorted.txt").existsSync())) {
+      File file = File("$filePath/sorted.txt");
       file.writeAsString("");
     }
 
     // check if the app last had a sort applied, and re-apply it
-    var sortedFile = await File(filePath + "/sorted.txt").readAsString();
+    var sortedFile = await File("$filePath/sorted.txt").readAsString();
     if (sortedFile == "_alphabeticallySorted") {
       _alphabeticallySorted = true;
     } else if (sortedFile == "_frequencySorted") {
@@ -166,9 +198,9 @@ Future<void> main() async {
       _groupFrequencySorted = true;
     }
 
-    // re-check boxes if any were checked
-    if (File(filePath + "/checked.json").existsSync()) {
-      var fileChecked = await File(filePath + "/checked.json").readAsString();
+    // repopulate _checked
+    if (File("$filePath/checked.json").existsSync()) {
+      var fileChecked = await File("$filePath/checked.json").readAsString();
       var jsonChecked = jsonDecode(fileChecked);
       for (int i = 0; i < jsonChecked.length; i++) {
         _checked.add(jsonChecked[i]['name']);
@@ -176,7 +208,8 @@ Future<void> main() async {
     }
 
     if (loggedIn && joinedGroup != "No Group Joined" && userID != "" && _checked.length > 0) {
-      var response = await http.get(Uri.parse('https://api.hungr.dev/groceryList?name=$joinedGroup'));
+      var response = await http.get(
+          Uri.parse('https://api.hungr.dev/groceryList?name=$joinedGroup'));
       var jsonResponse = jsonDecode(response.body);
       File file = File(filePath + "/purchases.txt");
       var fileString = await File(filePath + "/purchases.txt").readAsString();
@@ -188,9 +221,8 @@ Future<void> main() async {
         }
       }
       file.writeAsString(jsonResponse[0]['purchases'].toString());
+      }
     }
-
-  }
 
   // else use the default list, populated in globals
   else {
@@ -256,7 +288,7 @@ class _GroceryItemsState extends State<GroceryItems> {
                 style: TextStyle(color: Colors.black),),
               onPressed: () async {
                 // clear _checked if the list has been submitted since the last time the user has added to the shared list
-                if (loggedIn && joinedGroup != "No Group Joined" && userID != "" && _checked.length > 0) {
+                  if (loggedIn && joinedGroup != "No Group Joined" && userID != "" && _checked.length > 0) {
                   // we want this to happen before we call _syncChecked... could make it a method
                   var response = await http.get(Uri.parse('https://api.hungr.dev/groceryList?name=$joinedGroup'));
                   var jsonResponse = jsonDecode(response.body);
@@ -315,7 +347,7 @@ class _GroceryItemsState extends State<GroceryItems> {
                   _frequencySorted = false;
                   _groupFrequencySorted = false;
                   // save on file that it is sorted
-                  File file = File(filePath + "/sorted.txt");
+                  File file = File("$filePath/sorted.txt");
                   file.writeAsString("_alphabeticallySorted");
                 });
                 _saveLocalList();
@@ -362,24 +394,24 @@ class _GroceryItemsState extends State<GroceryItems> {
                 });
               } else if (selectedValue == 7) { // log out
                 // delete local save files and reset variables
-                if ((File(filePath + "/userID.txt").existsSync())) {
-                  File file = File(filePath + "/userID.txt");
+                if ((File("$filePath/userID.txt").existsSync())) {
+                  File file = File("$filePath/userID.txt");
                   file.deleteSync();
                 }
                 if ((File(filePath + "/loggedIn.txt").existsSync())) {
                   File file2 = File(filePath + "/loggedIn.txt");
                   file2.deleteSync();
                 }
-                if ((File(filePath + "/joinedGroup.txt").existsSync())) {
-                  File file3 = File(filePath + "/joinedGroup.txt");
+                if ((File("$filePath/joinedGroup.txt").existsSync())) {
+                  File file3 = File("$filePath/joinedGroup.txt");
                   file3.deleteSync();
                 }
-                if ((File(filePath + "/checked.json").existsSync())) {
-                  File file4 = File(filePath + "/checked.json");
+                if ((File("$filePath/checked.json").existsSync())) {
+                  File file4 = File("$filePath/checked.json");
                   file4.writeAsString("[]");
                 }
-                if ((File(filePath + "/purchases.txt").existsSync())) {
-                  File file = File(filePath + "/purchases.txt");
+                if ((File("$filePath/purchases.txt").existsSync())) {
+                  File file = File("$filePath/purchases.txt");
                   file.deleteSync();
                 }
                 if (joinedGroup != "No Group Joined") {
@@ -393,10 +425,11 @@ class _GroceryItemsState extends State<GroceryItems> {
                 _decoupledChecked.clear();
                 if (_groupFrequencySorted) {
                   _groupFrequencySorted = false;
-                  File file5 = File(filePath + "/sorted.txt");
+                  File file5 = File("$filePath/sorted.txt");
                   file5.writeAsString("");
                 }
-                setState(() {});
+                await FirebaseAuth.instance.signOut();
+                setState((){});
               }
             },
             // lambda expression => creates and populates popupmenu entries with child's
@@ -988,27 +1021,52 @@ class _GroceryItemsState extends State<GroceryItems> {
                                   loggedInDisplay = true;
                                 });
                                 if (usernameController.text.trim().isNotEmpty && passwordController.text.trim().isNotEmpty) {
-                                  loggedIn = await _login(usernameController.text.trim(), passwordController.text.trim());
+                                  // login the user
+                                  try {
+                                    final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+                                        email: usernameController.text.trim(),
+                                        password: passwordController.text.trim()
+                                    );
+
+                                    // update our vars
+                                    FirebaseAuth.instance.authStateChanges().listen((User? user) {
+                                      if (user != null) {
+                                        userID = user.uid;
+                                        loggedIn = true;
+                                        File file = File(filePath + "/loggedIn.txt");
+                                        file.writeAsString("true");
+                                        File file2 = File(filePath + "/userID.txt");
+                                        file2.writeAsString(userID);
+                                        Navigator.of(context).popUntil((route) => route.isFirst);
+                                        Navigator.push(context, MaterialPageRoute(builder: (context) => const GroceryItems()),);
+                                      } else {
+                                        setState(() {
+                                          loggedInDisplay = false;
+                                        });
+                                      }
+                                    });
+
+                                  } on FirebaseAuthException catch (e) {
+                                    if (e.code == 'user-not-found') {
+                                      setState(() {
+                                        loggedInDisplay = false;
+                                        _isVisible = true;
+                                      });
+                                    }
+                                    else if (e.code == 'wrong-password') {
+                                      setState(() {
+                                        loggedInDisplay = false;
+                                        _isVisible = true;
+                                      });
+                                    } else {
+                                      setState(() {
+                                        loggedInDisplay = false;
+                                        _isVisible = true;
+                                      });
+                                    }
+                                  }
                                 }
 
-                                // if loggedIn, set the userID
-                                if (loggedIn) {
-                                  userID = usernameController.text.trim();
-                                  File file = File(filePath + "/loggedIn.txt");
-                                  file.writeAsString("true");
-                                  File file2 = File(filePath + "/userID.txt");
-                                  file2.writeAsString(userID);
-                                  Navigator.of(context).popUntil((route) => route.isFirst);
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(builder: (context) => const GroceryItems()),
-                                  );
-                                } else {
-                                  setState(() {
-                                    loggedInDisplay = false;
-                                    _isVisible = true;
-                                  });
-                                }
                               },
                             )
                         ),
@@ -1099,11 +1157,11 @@ class _GroceryItemsState extends State<GroceryItems> {
                             width: 250,
                             height: shortUsername ? 35 : 25,
                             child: shortUsername ? Text (
-                              'Username and Password Must be At Least 6 Characters',
+                              'The password provided is too weak.',
                               textAlign: TextAlign.left,
                               style: const TextStyle(fontSize: 15),
                             ) : Text (
-                              'Username Already Taken',
+                              'The account already exists for that email.',
                               textAlign: TextAlign.left,
                               style: const TextStyle(fontSize: 15),
                             ),
@@ -1230,39 +1288,59 @@ class _GroceryItemsState extends State<GroceryItems> {
                                   _passwordsMatch = true;
                                   loggedInDisplay = false;
                                 } else if (((passwordController.text.trim() == passwordController2.text.trim()) && passwordController.text.trim().isNotEmpty)) {
-                                  var response = await http.post(Uri.parse('https://api.hungr.dev/signup?username=' +
-                                      usernameController.text.trim() + '&password=' + passwordController.text.trim()));
-                                  // for the time being just automatically log the user in
-                                  if (response.body == "success") {
-                                    // set loggedIn bool based on provided credentials
-                                    loggedIn = await _login(
-                                        usernameController.text.trim(),
-                                        passwordController.text.trim());
-                                    // if loggedIn, set the userID
-                                    if (loggedIn) {
-                                      userID = usernameController.text.trim();
-                                      File file = File(
-                                          filePath + "/loggedIn.txt");
-                                      file.writeAsString("true");
-                                      File file2 = File(
-                                          filePath + "/userID.txt");
-                                      file2.writeAsString(userID);
-                                      Navigator.of(context).popUntil((
-                                          route) => route.isFirst);
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(builder: (
-                                            context) => const GroceryItems()),
+
+                                    // Make an account using firebase
+                                    try {
+                                      final credential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+                                        email: usernameController.text.trim(),
+                                        password: passwordController.text.trim(),
                                       );
-                                    }
-                                  } else if (response.body == "Username Taken") {
-                                    setState(() {
-                                      _usernameTaken = true;
-                                      _passwordsMatch = true;
+                                    } on FirebaseAuthException catch (e) {
+                                      if (e.code == 'weak-password') {
+                                        shortUsername = true;
+                                        _usernameTaken = true;
+                                        _passwordsMatch = true;
+                                        loggedInDisplay = false;
+                                      } else if (e.code == 'email-already-in-use') {
+                                        setState(() {
+                                          _usernameTaken = true;
+                                          _passwordsMatch = true;
+                                          loggedInDisplay = false;
+                                          shortUsername = false;
+                                        });
+                                      }
+                                    } catch (e) {
                                       loggedInDisplay = false;
-                                      shortUsername = false;
-                                    });
-                                  }
+                                    }
+
+                                    // login the user
+                                    try {
+                                      final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+                                          email: usernameController.text.trim(),
+                                          password: passwordController.text.trim()
+                                      );
+
+                                      // update our vars
+                                        FirebaseAuth.instance.authStateChanges().listen((User? user) {
+                                          if (user != null) {
+                                            userID = user.uid;
+                                            loggedIn = true;
+                                            File file = File(filePath + "/loggedIn.txt");
+                                            file.writeAsString("true");
+                                            File file2 = File(filePath + "/userID.txt");
+                                            file2.writeAsString(userID);
+                                            Navigator.of(context).popUntil((route) => route.isFirst);
+                                            Navigator.push(context, MaterialPageRoute(builder: (context) => const GroceryItems()),
+                                            );
+                                          } else {
+                                            loggedInDisplay = false;
+                                          }
+                                        });
+
+                                    } on FirebaseAuthException catch (e) {
+                                      if (e.code == 'user-not-found') {}
+                                      else if (e.code == 'wrong-password') {}
+                                    }
                                 }
                               },
                             )
@@ -1460,9 +1538,9 @@ class _GroceryItemsState extends State<GroceryItems> {
                                   try {_firebaseMessaging.unsubscribeFromTopic(joinedGroupCopy);} catch(e) {}
                                   response = await http.get(Uri.parse('https://api.hungr.dev/groceryList?name=$joinedGroup'));
                                   var jsonResponse = jsonDecode(response.body);
-                                  File file = File(filePath + "/joinedGroup.txt");
+                                  File file = File("$filePath/joinedGroup.txt");
                                   file.writeAsString(joinedGroup);
-                                  File file2 = File(filePath + "/purchases.txt");
+                                  File file2 = File("$filePath/purchases.txt");
                                   file2.writeAsString(jsonResponse[0]['purchases'].toString());
                                   _checkedAllUsers.clear();
                                   _checked.clear();
@@ -1503,16 +1581,16 @@ class _GroceryItemsState extends State<GroceryItems> {
                                 style: TextStyle(fontSize: 24),
                               ),
                               onPressed: () {
-                                if ((File(filePath + "/joinedGroup.txt").existsSync())) {
-                                  File file = File(filePath + "/joinedGroup.txt");
+                                if ((File("$filePath/joinedGroup.txt").existsSync())) {
+                                  File file = File("$filePath/joinedGroup.txt");
                                   file.deleteSync();
                                 }
-                                if ((File(filePath + "/purchases.txt").existsSync())) {
-                                  File file = File(filePath + "/purchases.txt");
+                                if ((File("$filePath/purchases.txt").existsSync())) {
+                                  File file = File("$filePath/purchases.txt");
                                   file.deleteSync();
                                 }
-                                if (File(filePath + "/checked.json").existsSync()) {
-                                  File file = File(filePath + "/checked.json");
+                                if (File("$filePath/checked.json").existsSync()) {
+                                  File file = File("$filePath/checked.json");
                                   file.deleteSync();
                                 }
                                  _checkedAllUsers.clear();
@@ -1714,7 +1792,7 @@ class _GroceryItemsState extends State<GroceryItems> {
     setState((){});
 
     // save on file that it is unsorted
-    File file = File(filePath + "/sorted.txt");
+    File file = File("$filePath/sorted.txt");
     file.writeAsString("");
 
     _saveLocalList(); // re-save locally since we're going back to original sort
@@ -1757,7 +1835,7 @@ class _GroceryItemsState extends State<GroceryItems> {
     setState((){});
 
     // save on file that it is sorted
-    File file = File(filePath + "/sorted.txt");
+    File file = File("$filePath/sorted.txt");
     file.writeAsString("_frequencySorted");
 
     // save the list again
@@ -1783,7 +1861,7 @@ class _GroceryItemsState extends State<GroceryItems> {
     localList += "]";
 
     // write the json to a file saved locally on user's phone
-    File file = File(filePath + "/groceryItems.json");
+    File file = File("$filePath/groceryItems.json");
     file.writeAsString(localList); // write the JSON to local file
 
     // do the same as above with the copy list that we use for "unsort", "repopulate deleted items", and frequency sort
@@ -1799,7 +1877,7 @@ class _GroceryItemsState extends State<GroceryItems> {
     }
     localListCopy += "]";
 
-    File fileCopy = File(filePath + "/groceryItemsCopy.json");
+    File fileCopy = File("$filePath/groceryItemsCopy.json");
     fileCopy.writeAsString(localListCopy); // write the JSON to local file
 
     // do the same as above with _checkedList
@@ -1814,7 +1892,7 @@ class _GroceryItemsState extends State<GroceryItems> {
       localListChecked += "{\"id\": $i, \"name\": \"" + checkedList[i] + "\", \"count\": 1, \"note\": null, \"groceryList\": \"localList\"}";
     }
     localListChecked += "]";
-    File fileChecked = File(filePath + "/checked.json");
+    File fileChecked = File("$filePath/checked.json");
     fileChecked.writeAsString(localListChecked); // write the JSON to local file
 
   }
@@ -1840,12 +1918,12 @@ class _GroceryItemsState extends State<GroceryItems> {
     if (idling) {
       var response2 = await http.get(Uri.parse('https://api.hungr.dev/groceryList?name=$joinedGroup'));
       var jsonResponse2 = jsonDecode(response2.body);
-      File file = File(filePath + "/purchases.txt");
-      var fileString = await File(filePath + "/purchases.txt").readAsString();
+      File file = File("$filePath/purchases.txt");
+      var fileString = await File("$filePath/purchases.txt").readAsString();
       if (fileString != jsonResponse2[0]['purchases'].toString()) {
         _checked.clear();
-        if (File(filePath + "/checked.json").existsSync()) {
-          File file2 = File(filePath + "/checked.json");
+        if (File("$filePath/checked.json").existsSync()) {
+          File file2 = File("$filePath/checked.json");
           file2.deleteSync();
         }
         _checkedCopy.clear();
@@ -1875,7 +1953,7 @@ class _GroceryItemsState extends State<GroceryItems> {
       }
 
       // else if it was added by us, but is no longer in _checkedCopy
-      // prepare to remove (set visibility to 0) items that are no longer checked by the user: add to string for API URL
+      // prepare to remove (set visibility to 0) items that are swiped right by the user: add to string for API URL
       else if (jsonResponse[i]['username'] == userID && jsonResponse[i]['visible'] == 1) {
         if (uncheckedString != "") {
           uncheckedString += ",";
@@ -1944,15 +2022,6 @@ class _GroceryItemsState extends State<GroceryItems> {
     }
   }
 
-  // return true or false if username and password are in DB and matching
-  Future<bool> _login(username, password) async {
-    var response = await http.post(Uri.parse('https://api.hungr.dev/login?username=$username&password=$password'));
-    if (response.body == "User Logged in") {
-      return true;
-    }
-    return false;
-  }
-
   /* sets every item in the group's visible var to 0 after submitting the list,
   and increments purchased item frequencies in the DB */
   Future<void> _submitAPI(finalShoppingList) async {
@@ -2002,8 +2071,8 @@ class _GroceryItemsState extends State<GroceryItems> {
       await http.patch(Uri.parse('https://api.hungr.dev/items?groceryList=$joinedGroup&names=$patchFrequencies'));
     }
 
-    File file2 = File(filePath + "/purchases.txt");
-    var incrementString = await File(filePath + "/purchases.txt").readAsString();
+    File file2 = File("$filePath/purchases.txt");
+    var incrementString = await File("$filePath/purchases.txt").readAsString();
     var incrementInt = int.parse(incrementString);
     incrementInt++;
     file2.writeAsString(incrementInt.toString());
@@ -2016,7 +2085,7 @@ class _GroceryItemsState extends State<GroceryItems> {
     int randomNumber = Random.secure().nextInt(81) + 20;
     // generate a random string with randomNumber number of characters, and selecting a random character for each index from _chars
     joinableGroup = String.fromCharCodes(Iterable.generate(randomNumber, (_) => _chars.codeUnitAt(Random.secure().nextInt(_chars.length))));
-    File file = File(filePath + "/joinableGroup.txt");
+    File file = File("$filePath/joinableGroup.txt");
     file.writeAsString(joinableGroup);
   }
 
@@ -2056,7 +2125,7 @@ class _GroceryItemsState extends State<GroceryItems> {
     setState((){});
 
     // save on file that it is sorted
-    File file = File(filePath + "/sorted.txt");
+    File file = File("$filePath/sorted.txt");
     file.writeAsString("_groupFrequencySorted");
 
     // save the list again
@@ -2084,7 +2153,7 @@ class _GroceryItemsState extends State<GroceryItems> {
 
       await http.Client().post(url, headers: header, body: json.encode(request));
       return true;
-    } catch (e, s) {return false;}
+    } catch (e) {return false;}
   }
 
 }
