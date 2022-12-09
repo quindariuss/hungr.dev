@@ -11,6 +11,7 @@
 		568B7F6328B5540900E6E59E /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 568B7F6228B5540900E6E59E /* ContentView.swift */; };
 		568B7F6528B5540A00E6E59E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 568B7F6428B5540A00E6E59E /* Assets.xcassets */; };
 		568B7F6828B5540A00E6E59E /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 568B7F6728B5540A00E6E59E /* Preview Assets.xcassets */; };
+		56BA89DB2923E5A8003A1B2F /* Pow in Frameworks */ = {isa = PBXBuildFile; productRef = 56BA89DA2923E5A8003A1B2F /* Pow */; };
 		56FD7F0F2918418C005642AB /* Network.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56FD7F0E2918418C005642AB /* Network.swift */; };
 		56FD7F112918428D005642AB /* GroceryListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56FD7F102918428D005642AB /* GroceryListView.swift */; };
 		56FD7F1429184F7D005642AB /* GroceryListItemsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56FD7F1329184F7D005642AB /* GroceryListItemsView.swift */; };
@@ -35,6 +36,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				56BA89DB2923E5A8003A1B2F /* Pow in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -97,6 +99,9 @@
 			dependencies = (
 			);
 			name = Hungr;
+			packageProductDependencies = (
+				56BA89DA2923E5A8003A1B2F /* Pow */,
+			);
 			productName = Hungr;
 			productReference = 568B7F5D28B5540900E6E59E /* Hungr.app */;
 			productType = "com.apple.product-type.application";
@@ -125,6 +130,9 @@
 				Base,
 			);
 			mainGroup = 568B7F5428B5540900E6E59E;
+			packageReferences = (
+				56BA89D92923E5A8003A1B2F /* XCRemoteSwiftPackageReference "Pow" */,
+			);
 			productRefGroup = 568B7F5E28B5540900E6E59E /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -359,6 +367,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		56BA89D92923E5A8003A1B2F /* XCRemoteSwiftPackageReference "Pow" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/movingparts-io/Pow";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		56BA89DA2923E5A8003A1B2F /* Pow */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 56BA89D92923E5A8003A1B2F /* XCRemoteSwiftPackageReference "Pow" */;
+			productName = Pow;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 568B7F5528B5540900E6E59E /* Project object */;
 }
