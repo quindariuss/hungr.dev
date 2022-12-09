@@ -1,0 +1,92 @@
+
+
+body{
+	margin: 0;
+	background-color: white;
+	font-family: helvetica;
+}
+
+header {
+	color: turquoise;
+}
+
+header img{
+	height: 100px;
+	width: 100px;
+	float: left;
+	margin: 0px 10px 10px 10px;
+}
+
+header h1, h2{
+	margin-left: 10%;
+	padding:1px 16px;
+}
+
+h3{
+	color: turquoise;
+}
+
+
+.navbar ul{
+	list-style-type: none;
+	margin: 0;
+	padding: 0;
+	width: 10%;
+	background-color: lightgrey;
+	position: fixed;
+	height: 100%;
+	overflow: auto;
+}
+.navbar ul li a{
+	display: block;
+	color: black;
+	padding: 8px 16px;
+	text-decoration: none;
+	text-align: center;
+}
+.navbar ul li a.active{
+	background-color: turquoise;
+	color: white;
+}
+.navbar ul li a:hover:not(.active){
+	background-color: turquoise;
+	color: white;
+}
+
+.header{
+	margin-top: 10px;
+}
+.header > *{
+	vertical-align: middle;
+	display: inline-block;
+	color: turquoise;
+}
+
+.header img{
+	height: 100px;
+	width: 100px;
+}
+.header h2{
+	text-align: center;
+}
+
+
+.main{
+	margin-left:10%;
+	padding:1px 16px;
+}
+/*
+.main > *{
+	border-color: turquoise;
+	border-style: solid;
+	border-width: 2px;
+	border-radius: 5px;
+}
+*/
+
+
+
+.main table, th, td{
+	border: 1px solid turquoise;
+	border-collapse: collapse;
+}

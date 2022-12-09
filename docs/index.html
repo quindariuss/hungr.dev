@@ -1,83 +1,129 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-	<meta charset="utf-8" />
-	<title>Hungr</title>
-	<meta name="robots" content="index,follow" />
-	<meta name="description" content="A Grocery List Tracker" />
-	<meta name="viewport" content="width=device-width, initial-scale=1" />
-	<link rel="stylesheet" href="bolt.css" />
-	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  </head>
-  <body>
-	  <h1>🛒 Hungr </h1>
-	  <h2>
-		  A Grocery List Tracker
-	  </h2>
-	  <hr />
-	  <ul>
-		  <li>
-			  About
-		  </li>
-		  <ul>
-			  <li>
-				  Developers 💻
-			  </li>
-			  <ul>
-				  <li>
-					  Quin'darius Ali Lyles-Woods
-				  </li>
-				  <li>
-					  Aidan Le-Beard
-				  </li>
-				  <li>
-					  Jeetu Sharma
-				  </li>
-				  <li>
-					  Danny Sor
-				  </li>
-				  <li>
-					  Adam Maksymczuk
-				  </li>
-			  </ul>
-			  <li>
-				  Tech Stack 🥞
-			  </li>
-			  <ul>
-				  <li>
-					  Dart
-				  </li>
-				  <li>
-					  Python
-				  </li>
-				  <li>
-					  SQLite
-				  </li>
-				  <li>
-					  <strike>Swift</strike>
-				  </li>
-			  </ul>
-			  <li>
-				  Features ✨
-			  </li>
-			  <ul>
-				  <li>
-					  Make a list
-				  </li>
-				  <li>
-					  Update list name
-				  </li>
-				  <li>
-					  Add Items
-				  </li>
-				  <li>
-					  Delete Items
-				  </li>
-				  <li>
-					  Update Items
-				  </li>
-			  </ul>
-		  </ul>
-	  </ul>
-  </body>
+<html>
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Hungr [The dynamic grociery list app]</title>
+	<link rel="icon" type="image/png" href="Images/Hungr_Logo.png">
+	<link rel="stylesheet" type="text/css" href="Hungr_Styles.css">
+</head>
+<body>	
+
+
+
+
+	<div class="navbar">
+		<ul>
+			<li><a class="active" href="Hungr.html">Hungr</a></li>
+			<li><a href="#About">About</a></li>
+			<li><a href="#Features">Features</a></li>
+			<li><a href="#Stack">Tech Stack</a></li>
+			<li><a href="#Github">Github</a></li>
+			<li><a href="#Developers">Developers</a></li>
+		</ul>
+	</nav>	
+
+	<div class="main">	
+		<div class="header">
+			<img src="Images/Hungr_Logo.png">
+			<h1>Hungr</h1>
+			<h2>The dynamic grociery list app</h2>
+		</div>
+
+		<div class="phone-demo">
+			<video height="480" width="640" controls>
+				<source src="Hungr_Cday_Vid.webm" type="video/webm">
+			</video>
+		</div>
+
+		<div id="About">
+			<h3>About</h3>
+			<p><b>What is hungr?</b></p>
+			<p>
+				Hungr is a multi-platform dynamic grocery list app with the goal of being easy to use and convenient for practical use. 
+			</p>
+			<p><b>Why did we make it?</b></p>
+			<p>The idea of the app was to take a traditional grocery list and add multiple features that make this app more convenient, unique, and simple to use. One of the more unique design features is the idea of being a dynamic grocery list. This means that users in a group will have their grocery lists automatically synced so that everyone is up to date on changes in the list. With this, shopping with family and friends becomes easier to use and manage.</p>
+		</div>
+
+		<div id="Features">
+			<h3>Features</h3>
+			<ol>
+				<li>Making a grociery list</li>
+				<li>Changing the list name</li>
+				<li>Add grociery items</li>
+				<li>Remove grociery items</li>
+				<li>Change grociery items</li>
+			</ol>
+			
+		</div>
+
+		<div id="Stack">
+			<h3>Teck Stack</h3>
+			<ol>
+				<li>Dart - Used to build the android and ios apps</li>
+				<li>Python - Used for app backend and api calls</li>
+				<li>SQLite - Used to store data of grociery lists and users</li>
+			</ol>
+		</div>
+
+		<div id="Github">
+			<h3>Github</h3>
+			<a href="https://github.com/quinwoods/hungr.dev">Source</a>
+			<a href="https://github.com/quinwoods/api.hungr.dev">API</a>
+			<a href="https://github.com/quinwoods/hungr.dev/releases">Releases</a>
+		</div>
+
+		<div id="Developers">
+			<h3 >Developers</h3>
+			<table>
+					<thead>
+						<th>Role</th>
+						<th>Name</th>
+						<th>Job</th>
+						<th>Email</th>
+					</thead>
+					<tbody>
+						<tr>
+							<td>Team Leader</td>
+							<td>Quin'darius Lyles-Woods</td>
+							<td>Full Stack Dev</td>
+							<td>
+								<a href="mailto: quindarius@hey.com">quindarius@hey.com</a>
+							</td>
+						</tr>
+						<tr>
+							<td rowspan="4">Team Members</td>
+							<td>Aidan Le-Beard</td>
+							<td>Flutter Developer</td>
+							<td>
+								<a href="mailto: aidan30004@gmail.com">aidan30004@gmail.com</a>
+							</td>
+						</tr>
+						<tr>
+							<td>Adam Maksymczuk</td>
+							<td>Front End Dev</td>
+							<td>
+								<a href="mailto: amaksymc@students.kennesaw.edu">amaksymc@students.kennesaw.edu</a>
+							</td>
+						</tr>
+						<tr>
+							<td>Jeetu Sharma</td>
+							<td>Back End Dev</td>
+							<td>
+								<a href="mailto: contact@jeetusharma.com">contact@jeetusharma.com</a>
+							</td>
+						</tr>
+						<tr>
+							<td>Danny Sor</td>
+							<td>Full Stack Dev</td>
+							<td>
+								<a href="mailto: dannysor987@gmail.com">dannysor987@gmail.com</a>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
+	</div>
+</body>
 </html>

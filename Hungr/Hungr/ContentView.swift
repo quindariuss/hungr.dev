@@ -11,46 +11,9 @@ struct ContentView: View {
     @State var items = [ListItem]()
     @State var itemName = ""
     var body: some View {
-        NavigationStack {
-            
-            VStack {
-                TextField("Item Name",
-                          text: $itemName
-                )
-                .onSubmit {
-                    items.append(ListItem(name: itemName, price: 1, addedAt: Date())
-                    )
-                }
-                .textFieldStyle(.roundedBorder)
-                .padding()
-                List(items) { item in
-                    VStack {
-                        HStack {
-                            Text(item.name)
-                            Spacer()
-                            Text("$ \(item.price)")
-                        }
-                        HStack {
-                            Text("Quin'darius")
-                                .padding(.all, 3)
-                                .background(Color.teal)
-                                .cornerRadius(5)
-                            Spacer()
-                            Text(item.addedAt.formatted())
-                        }
-                    }
-                }
-            }
-            .navigationTitle("Hungr")
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing){
-                    Button {
-                        print("Add Item")
-                    } label: {
-                        Image(systemName: "cart.badge.plus")
-                    }
-                }
-            }
+        NavigationView {
+            GroceryListView()
+                .navigationTitle("Grocery Lists")
         }
     }
 }

@@ -11,6 +11,11 @@
 		568B7F6328B5540900E6E59E /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 568B7F6228B5540900E6E59E /* ContentView.swift */; };
 		568B7F6528B5540A00E6E59E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 568B7F6428B5540A00E6E59E /* Assets.xcassets */; };
 		568B7F6828B5540A00E6E59E /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 568B7F6728B5540A00E6E59E /* Preview Assets.xcassets */; };
+		56BA89DB2923E5A8003A1B2F /* Pow in Frameworks */ = {isa = PBXBuildFile; productRef = 56BA89DA2923E5A8003A1B2F /* Pow */; };
+		56FD7F0F2918418C005642AB /* Network.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56FD7F0E2918418C005642AB /* Network.swift */; };
+		56FD7F112918428D005642AB /* GroceryListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56FD7F102918428D005642AB /* GroceryListView.swift */; };
+		56FD7F1429184F7D005642AB /* GroceryListItemsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56FD7F1329184F7D005642AB /* GroceryListItemsView.swift */; };
+		56FD7F16291935C2005642AB /* EdititemView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56FD7F15291935C2005642AB /* EdititemView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -19,6 +24,11 @@
 		568B7F6228B5540900E6E59E /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		568B7F6428B5540A00E6E59E /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		568B7F6728B5540A00E6E59E /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		56FD7F0E2918418C005642AB /* Network.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Network.swift; sourceTree = "<group>"; };
+		56FD7F102918428D005642AB /* GroceryListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroceryListView.swift; sourceTree = "<group>"; };
+		56FD7F12291844E5005642AB /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		56FD7F1329184F7D005642AB /* GroceryListItemsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GroceryListItemsView.swift; sourceTree = "<group>"; };
+		56FD7F15291935C2005642AB /* EdititemView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EdititemView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -26,6 +36,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				56BA89DB2923E5A8003A1B2F /* Pow in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -35,6 +46,7 @@
 		568B7F5428B5540900E6E59E = {
 			isa = PBXGroup;
 			children = (
+				56FD7F15291935C2005642AB /* EdititemView.swift */,
 				568B7F5F28B5540900E6E59E /* Hungr */,
 				568B7F5E28B5540900E6E59E /* Products */,
 			);
@@ -51,8 +63,12 @@
 		568B7F5F28B5540900E6E59E /* Hungr */ = {
 			isa = PBXGroup;
 			children = (
+				56FD7F1329184F7D005642AB /* GroceryListItemsView.swift */,
+				56FD7F12291844E5005642AB /* Info.plist */,
 				568B7F6028B5540900E6E59E /* HungrApp.swift */,
 				568B7F6228B5540900E6E59E /* ContentView.swift */,
+				56FD7F102918428D005642AB /* GroceryListView.swift */,
+				56FD7F0E2918418C005642AB /* Network.swift */,
 				568B7F6428B5540A00E6E59E /* Assets.xcassets */,
 				568B7F6628B5540A00E6E59E /* Preview Content */,
 			);
@@ -83,6 +99,9 @@
 			dependencies = (
 			);
 			name = Hungr;
+			packageProductDependencies = (
+				56BA89DA2923E5A8003A1B2F /* Pow */,
+			);
 			productName = Hungr;
 			productReference = 568B7F5D28B5540900E6E59E /* Hungr.app */;
 			productType = "com.apple.product-type.application";
@@ -111,6 +130,9 @@
 				Base,
 			);
 			mainGroup = 568B7F5428B5540900E6E59E;
+			packageReferences = (
+				56BA89D92923E5A8003A1B2F /* XCRemoteSwiftPackageReference "Pow" */,
+			);
 			productRefGroup = 568B7F5E28B5540900E6E59E /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -138,7 +160,11 @@
 			buildActionMask = 2147483647;
 			files = (
 				568B7F6328B5540900E6E59E /* ContentView.swift in Sources */,
+				56FD7F16291935C2005642AB /* EdititemView.swift in Sources */,
+				56FD7F1429184F7D005642AB /* GroceryListItemsView.swift in Sources */,
 				568B7F6128B5540900E6E59E /* HungrApp.swift in Sources */,
+				56FD7F112918428D005642AB /* GroceryListView.swift in Sources */,
+				56FD7F0F2918418C005642AB /* Network.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -270,6 +296,7 @@
 				DEVELOPMENT_TEAM = 25Y24L598Y;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Hungr/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -299,6 +326,7 @@
 				DEVELOPMENT_TEAM = 25Y24L598Y;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Hungr/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -339,6 +367,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		56BA89D92923E5A8003A1B2F /* XCRemoteSwiftPackageReference "Pow" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/movingparts-io/Pow";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		56BA89DA2923E5A8003A1B2F /* Pow */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 56BA89D92923E5A8003A1B2F /* XCRemoteSwiftPackageReference "Pow" */;
+			productName = Pow;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 568B7F5528B5540900E6E59E /* Project object */;
 }
